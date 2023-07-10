@@ -27,6 +27,7 @@ LOG_MODULE_REGISTER(flash);
 #define FLASH_DEV0 DT_ALIAS(spi_flash0)
 #define FLASH_DEV1 DT_ALIAS(spi_flash1)
 #define FLASH_DEV2 DT_ALIAS(spi_flash2)
+
 /* Get device from device tree */
 static const struct device *const flash_devices[] = {
 #if DT_NODE_HAS_STATUS(FLASH_DEV0, okay)
@@ -41,7 +42,6 @@ static const struct device *const flash_devices[] = {
 };
 
 #define NUM_FLASH_DEVICE ARRAY_SIZE(flash_devices)
-uint8_t flash_dev_idx_sel;
 
 /* Data buffer */
 #define TEMP_DATA_BUF_SIZE 128
@@ -66,49 +66,11 @@ static uint8_t temp_write_buf[TEMP_DATA_BUF_SIZE] = {
 	0x20, 0x00, 0x0f, 0xc8, 0x4a, 0xf3, 0xb0, 0x5a,
 };
 
-/* Commands used for validation */
-enum {
-	NOR_FLASH_CMD_READ_ID,
-	NOR_FLASH_CMD_ERASE,
-	NOR_FLASH_CMD_READ,
-	NOR_FLASH_CMD_WRITE,
-	NOR_FLASH_CMD_READ_STS_REG,
-	NOR_FLASH_CMD_WRITE_STS_REG,
-	NOR_FLASH_CMD_WP_EN,
-	NOR_FLASH_CMD_LOCK_SPI,
-	NOR_FLASH_CMD_GET_OPER,
-	NOR_FLASH_CMD_COUNT,
-};
-
 /* Objects used for validation */
 static struct {
-	int cmd;
-	struct k_sem sem_sync;
-
-	/* command args */
-	struct {
-		uint32_t erase_addr;
-		uint32_t erase_size;
-	} cmd_flash_erase_args;
-
-	struct {
-		uint32_t read_addr;
-		uint32_t read_size;
-	} cmd_flash_read_args;
-
-	struct {
-		uint32_t write_addr;
-		uint32_t write_size;
-	} cmd_flash_write_args;
-
-	struct {
-		uint8_t status[2];
-	} cmd_flash_wr_status_args;
-
-	struct {
-		bool lock;
-	} cmd_flash_lock_args;
-} nor_flash_test_objs;
+	const struct shell *shell;
+	const struct device *cur_dev;
+} test_objs;
 
 /* SFDP Test Functions */
 static const char * const mode_tags[] = {
@@ -125,12 +87,16 @@ static const char * const mode_tags[] = {
 	[JESD216_MODE_444] = "4-4-4",
 };
 
+
+#define shell_printk(...) \
+	shell_fprintf(test_objs.shell, SHELL_NORMAL, ##__VA_ARGS__)
+
 static void summarize_dw1(const struct jesd216_param_header *php,
 			  const struct jesd216_bfp *bfp)
 {
 	uint32_t dw1 = sys_le32_to_cpu(bfp->dw1);
 
-	printk("DTR Clocking %ssupported\n",
+	shell_printk("DTR Clocking %ssupported\n",
 	       (dw1 & JESD216_SFDP_BFP_DW1_DTRCLK_FLG) ? "" : "not ");
 
 	static const char *const addr_bytes[] = {
@@ -140,8 +106,8 @@ static void summarize_dw1(const struct jesd216_param_header *php,
 		[3] = "Reserved",
 	};
 
-	printk("Addressing: %s\n", addr_bytes[(dw1 & JESD216_SFDP_BFP_DW1_ADDRBYTES_MASK)
-					      >> JESD216_SFDP_BFP_DW1_ADDRBYTES_SHFT]);
+	shell_printk("Addressing: %s\n", addr_bytes[(dw1 & JESD216_SFDP_BFP_DW1_ADDRBYTES_MASK)
+					 >> JESD216_SFDP_BFP_DW1_ADDRBYTES_SHFT]);
 
 	static const char *const bsersz[] = {
 		[0] = "Reserved 00b",
@@ -150,8 +116,8 @@ static void summarize_dw1(const struct jesd216_param_header *php,
 		[JESD216_SFDP_BFP_DW1_BSERSZ_VAL_4KNOTSUP] = "not uniform",
 	};
 
-	printk("4-KiBy erase: %s\n", bsersz[(dw1 & JESD216_SFDP_BFP_DW1_BSERSZ_MASK)
-					    >> JESD216_SFDP_BFP_DW1_BSERSZ_SHFT]);
+	shell_printk("4-KiBy erase: %s\n", bsersz[(dw1 & JESD216_SFDP_BFP_DW1_BSERSZ_MASK)
+					   >> JESD216_SFDP_BFP_DW1_BSERSZ_SHFT]);
 
 	for (size_t mode = 0; mode < ARRAY_SIZE(mode_tags); ++mode) {
 		const char *tag = mode_tags[mode];
@@ -163,10 +129,10 @@ static void summarize_dw1(const struct jesd216_param_header *php,
 							  &cmd);
 
 			if (rc == 0) {
-				printk("Support %s\n", tag);
+				shell_printk("Support %s\n", tag);
 			} else if (rc > 0) {
-				printk("Support %s: instr %02Xh, %u mode clocks, %u waits\n",
-				       tag, cmd.instr, cmd.mode_clocks, cmd.wait_states);
+				shell_printk("Support %s: instr %02Xh, %u mode clocks, %u waits\n",
+					     tag, cmd.instr, cmd.mode_clocks, cmd.wait_states);
 			}
 		}
 	}
@@ -175,7 +141,7 @@ static void summarize_dw1(const struct jesd216_param_header *php,
 static void summarize_dw2(const struct jesd216_param_header *php,
 			  const struct jesd216_bfp *bfp)
 {
-	printk("Flash density: %u bytes\n", (uint32_t)(jesd216_bfp_density(bfp) / 8));
+	shell_printk("Flash density: %u bytes\n", (uint32_t)(jesd216_bfp_density(bfp) / 8));
 }
 
 static void summarize_dw89(const struct jesd216_param_header *php,
@@ -190,13 +156,13 @@ static void summarize_dw89(const struct jesd216_param_header *php,
 			typ_max_mul = jesd216_bfp_erase_type_times(php, bfp,
 								   idx, &typ_ms);
 
-			printk("ET%u: instr %02Xh for %u By", idx, etype.cmd,
+			shell_printk("ET%u: instr %02Xh for %u By", idx, etype.cmd,
 			       (uint32_t)BIT(etype.exp));
 			if (typ_max_mul > 0) {
-				printk("; typ %u ms, max %u ms",
+				shell_printk("; typ %u ms, max %u ms",
 				       typ_ms, typ_max_mul * typ_ms);
 			}
-			printk("\n");
+			shell_printk("\n");
 		}
 	}
 }
@@ -210,19 +176,19 @@ static void summarize_dw11(const struct jesd216_param_header *php,
 		return;
 	}
 
-	printk("Chip erase: typ %u ms, max %u ms\n",
-	       dw11.chip_erase_ms, dw11.typ_max_factor * dw11.chip_erase_ms);
+	shell_printk("Chip erase: typ %u ms, max %u ms\n",
+		dw11.chip_erase_ms, dw11.typ_max_factor * dw11.chip_erase_ms);
 
-	printk("Byte program: type %u + %u * B us, max %u + %u * B us\n",
-	       dw11.byte_prog_first_us, dw11.byte_prog_addl_us,
-	       dw11.typ_max_factor * dw11.byte_prog_first_us,
-	       dw11.typ_max_factor * dw11.byte_prog_addl_us);
+	shell_printk("Byte program: type %u + %u * B us, max %u + %u * B us\n",
+		dw11.byte_prog_first_us, dw11.byte_prog_addl_us,
+		dw11.typ_max_factor * dw11.byte_prog_first_us,
+		dw11.typ_max_factor * dw11.byte_prog_addl_us);
 
-	printk("Page program: typ %u us, max %u us\n",
-	       dw11.page_prog_us,
-	       dw11.typ_max_factor * dw11.page_prog_us);
+	shell_printk("Page program: typ %u us, max %u us\n",
+		dw11.page_prog_us,
+		w11.typ_max_factor * dw11.page_prog_us);
 
-	printk("Page size: %u By\n", dw11.page_size);
+	shell_printk("Page size: %u By\n", dw11.page_size);
 }
 
 static void summarize_dw12(const struct jesd216_param_header *php,
@@ -241,12 +207,12 @@ static void summarize_dw12(const struct jesd216_param_header *php,
 	uint8_t psusp_instr = dw13 >> 8;
 	uint8_t presm_instr = dw13 >> 0;
 
-	printk("Suspend: %02Xh ; Resume: %02Xh\n",
+	shell_printk("Suspend: %02Xh ; Resume: %02Xh\n",
 	       susp_instr, resm_instr);
 	if ((susp_instr != psusp_instr)
 	    || (resm_instr != presm_instr)) {
-		printk("Program suspend: %02Xh ; Resume: %02Xh\n",
-		       psusp_instr, presm_instr);
+		shell_printk("Program suspend: %02Xh ; Resume: %02Xh\n",
+				psusp_instr, presm_instr);
 	}
 }
 
@@ -258,9 +224,9 @@ static void summarize_dw14(const struct jesd216_param_header *php,
 	if (jesd216_bfp_decode_dw14(php, bfp, &dw14) != 0) {
 		return;
 	}
-	printk("DPD: Enter %02Xh, exit %02Xh ; delay %u ns ; poll 0x%02x\n",
-	       dw14.enter_dpd_instr, dw14.exit_dpd_instr,
-	       dw14.exit_delay_ns, dw14.poll_options);
+	shell_printk("DPD: Enter %02Xh, exit %02Xh ; delay %u ns ; poll 0x%02x\n",
+		dw14.enter_dpd_instr, dw14.exit_dpd_instr,
+		dw14.exit_delay_ns, dw14.poll_options);
 }
 
 static void summarize_dw15(const struct jesd216_param_header *php,
@@ -271,17 +237,17 @@ static void summarize_dw15(const struct jesd216_param_header *php,
 	if (jesd216_bfp_decode_dw15(php, bfp, &dw15) != 0) {
 		return;
 	}
-	printk("HOLD or RESET Disable: %ssupported\n",
-	       dw15.hold_reset_disable ? "" : "un");
-	printk("QER: %u\n", dw15.qer);
+	shell_printk("HOLD or RESET Disable: %ssupported\n",
+			dw15.hold_reset_disable ? "" : "un");
+	shell_printk("QER: %u\n", dw15.qer);
 	if (dw15.support_044) {
-		printk("0-4-4 Mode methods: entry 0x%01x ; exit 0x%02x\n",
-		       dw15.entry_044, dw15.exit_044);
+		shell_printk("0-4-4 Mode methods: entry 0x%01x ; exit 0x%02x\n",
+				dw15.entry_044, dw15.exit_044);
 	} else {
-		printk("0-4-4 Mode: not supported");
+		shell_printk("0-4-4 Mode: not supported");
 	}
-	printk("4-4-4 Mode sequences: enable 0x%02x ; disable 0x%01x\n",
-	       dw15.enable_444, dw15.disable_444);
+	shell_printk("4-4-4 Mode sequences: enable 0x%02x ; disable 0x%01x\n",
+			dw15.enable_444, dw15.disable_444);
 }
 
 static void summarize_dw16(const struct jesd216_param_header *php,
@@ -297,13 +263,13 @@ static void summarize_dw16(const struct jesd216_param_header *php,
 
 	/* Don't display bits when 4-byte addressing is not supported. */
 	if (addr_support != JESD216_SFDP_BFP_DW1_ADDRBYTES_VAL_3B) {
-		printk("4-byte addressing support: enter 0x%02x, exit 0x%03x\n",
+		shell_printk("4-byte addressing support: enter 0x%02x, exit 0x%03x\n",
 		       dw16.enter_4ba, dw16.exit_4ba);
 	}
-	printk("Soft Reset and Rescue Sequence support: 0x%02x\n",
-	       dw16.srrs_support);
-	printk("Status Register 1 support: 0x%02x\n",
-	       dw16.sr1_interface);
+	shell_printk("Soft Reset and Rescue Sequence support: 0x%02x\n",
+			dw16.srrs_support);
+	shell_printk("Status Register 1 support: 0x%02x\n",
+			dw16.sr1_interface);
 }
 
 typedef void (*dw_extractor)(const struct jesd216_param_header *php,
@@ -327,7 +293,7 @@ static void dump_bfp(const struct jesd216_param_header *php,
 	uint8_t dw = 1;
 	uint8_t limit = MIN(1U + php->len_dw, ARRAY_SIZE(extractor));
 
-	printk("Summary of BFP content:\n");
+	shell_printk("Summary of BFP content:\n");
 	while (dw < limit) {
 		dw_extractor ext = extractor[dw];
 
@@ -344,7 +310,7 @@ static void dump_bytes(const struct jesd216_param_header *php,
 	char buffer[4 * 3 + 1]; /* B1 B2 B3 B4 */
 	uint8_t nw = 0;
 
-	printk(" [\n\t");
+	shell_printk(" [\n\t");
 	while (nw < php->len_dw) {
 		const uint8_t *u8p = (const uint8_t *)&dw[nw];
 		++nw;
@@ -354,12 +320,12 @@ static void dump_bytes(const struct jesd216_param_header *php,
 		sprintf(buffer, "%02x %02x %02x %02x",
 			u8p[0], u8p[1], u8p[2], u8p[3]);
 		if (emit_nl) {
-			printk("%s\n\t", buffer);
+			shell_printk("%s\n\t", buffer);
 		} else {
-			printk("%s  ", buffer);
+			shell_printk("%s  ", buffer);
 		}
 	}
-	printk("];\n");
+	shell_printk("];\n");
 }
 
 /* Test Function Declarations */
@@ -370,10 +336,10 @@ static int nor_flash_read_id(const struct device *flash_dev)
 
 	rc = flash_read_jedec_id(flash_dev, id);
 	if (rc == 0) {
-		printk("jedec-id = [%02x %02x %02x];\n",
+		shell_printk("jedec-id = [%02x %02x %02x];\n",
 		       id[0], id[1], id[2]);
 	} else {
-		printk("JEDEC ID read failed: %d\n", rc);
+		shell_printk("JEDEC ID read failed: %d\n", rc);
 	}
 
 	const uint8_t decl_nph = 5;
@@ -398,7 +364,7 @@ static int nor_flash_read_id(const struct device *flash_dev)
 		return 0;
 	}
 
-	printk("%s: SFDP v %u.%u AP %x with %u PH\n", flash_dev->name,
+	shell_printk("%s: SFDP v %u.%u AP %x with %u PH\n", flash_dev->name,
 		hp->rev_major, hp->rev_minor, hp->access, 1 + hp->nph);
 
 	const struct jesd216_param_header *php = hp->phdr;
@@ -408,7 +374,7 @@ static int nor_flash_read_id(const struct device *flash_dev)
 		uint16_t id = jesd216_param_id(php);
 		uint32_t addr = jesd216_param_addr(php);
 
-		printk("PH%u: %04x rev %u.%u: %u DW @ %x\n",
+		shell_printk("PH%u: %04x rev %u.%u: %u DW @ %x\n",
 		       (uint32_t)(php - hp->phdr), id, php->rev_major, php->rev_minor,
 		       php->len_dw, addr);
 
@@ -416,7 +382,7 @@ static int nor_flash_read_id(const struct device *flash_dev)
 
 		rc = flash_sfdp_read(flash_dev, addr, dw, sizeof(dw));
 		if (rc != 0) {
-			printk("Read failed: %d\n", rc);
+			shell_printk("Read failed: %d\n", rc);
 			return 0;
 		}
 
@@ -424,10 +390,10 @@ static int nor_flash_read_id(const struct device *flash_dev)
 			const struct jesd216_bfp *bfp = (struct jesd216_bfp *)dw;
 
 			dump_bfp(php, bfp);
-			printk("size = <%u>;\n", (uint32_t)jesd216_bfp_density(bfp));
-			printk("sfdp-bfp =");
+			shell_printk("size = <%u>;\n", (uint32_t)jesd216_bfp_density(bfp));
+			shell_printk("sfdp-bfp =");
 		} else {
-			printk("sfdp-%04x =", id);
+			shell_printk("sfdp-%04x =", id);
 		}
 
 		dump_bytes(php, dw);
@@ -474,7 +440,7 @@ static int nor_flash_erase(const struct device *flash_dev, off_t addr, size_t si
 		temp_size -= read_size;
 	}
 
-	LOG_INF("Flash erase succeeded!");
+	shell_info(test_objs.shell, "Flash erase succeeded!");
 	return 0;
 }
 
@@ -487,7 +453,7 @@ static int nor_flash_read(const struct device *flash_dev, off_t addr, size_t siz
 
 	temp_size = size;
 	read_addr = addr;
-	LOG_INF("Flash Address: 0x%lx, size: 0x%x", addr, size);
+	shell_info(test_objs.shell, "Flash Address: 0x%lx, size: 0x%x", addr, size);
 
 	while (temp_size) {
 		read_size = (temp_size >= TEMP_DATA_BUF_SIZE) ? TEMP_DATA_BUF_SIZE : temp_size;
@@ -500,18 +466,18 @@ static int nor_flash_read(const struct device *flash_dev, off_t addr, size_t siz
 
 		for (i = 0; i < read_size; i++) {
 			if ((i % 16) == 0) {
-				printk("\n");
+				shell_printk("\n");
 			}
 
-			printk("0x%.2x ", temp_data_buf[i]);
+			shell_printk("0x%.2x ", temp_data_buf[i]);
 		}
 
 		read_addr += read_size;
 		temp_size -= read_size;
 	}
 
-	printk("\n\n");
-	LOG_INF("Flash read succeeded!");
+	shell_printk("\n\n");
+	shell_info(test_objs.shell, "Flash read succeeded!");
 	return 0;
 }
 
@@ -583,177 +549,16 @@ static int nor_flash_write(const struct device *flash_dev, off_t addr, size_t si
 		temp_size -= write_size;
 	}
 
-	LOG_INF("Flash write succeeded!");
+	shell_info(test_objs.shell, "Flash write succeeded!");
 	return 0;
-}
-
-static void nor_flash_thread_entry(void)
-{
-	for (int i = 0; i < NUM_FLASH_DEVICE; i++) {
-		if (!device_is_ready(flash_devices[i])) {
-			LOG_ERR("flash device %s is not ready", flash_devices[i]->name);
-			return;
-		}
-
-		LOG_INF("flash device [%d]:%s is ready", i, flash_devices[i]->name);
-	}
-
-	/* Init semaphore first */
-	k_sem_init(&nor_flash_test_objs.sem_sync, 0, 1);
-
-	while (true) {
-		/* Task wait event here */
-		k_sem_take(&nor_flash_test_objs.sem_sync, K_FOREVER);
-
-		switch (nor_flash_test_objs.cmd) {
-		case NOR_FLASH_CMD_READ_ID:
-			LOG_INF("Read NOR FLASH ID");
-			nor_flash_read_id(flash_devices[flash_dev_idx_sel]);
-			break;
-		case NOR_FLASH_CMD_ERASE:
-			LOG_INF("Erase NOR FLASH");
-			nor_flash_erase(flash_devices[flash_dev_idx_sel],
-					nor_flash_test_objs.cmd_flash_erase_args.erase_addr,
-					nor_flash_test_objs.cmd_flash_erase_args.erase_size);
-			break;
-		case NOR_FLASH_CMD_READ:
-			LOG_INF("Read NOR FLASH");
-			nor_flash_read(flash_devices[flash_dev_idx_sel],
-				       nor_flash_test_objs.cmd_flash_read_args.read_addr,
-				       nor_flash_test_objs.cmd_flash_read_args.read_size);
-			break;
-		case NOR_FLASH_CMD_WRITE:
-			LOG_INF("Write NOR FLASH");
-			nor_flash_write(flash_devices[flash_dev_idx_sel],
-					nor_flash_test_objs.cmd_flash_write_args.write_addr,
-					nor_flash_test_objs.cmd_flash_write_args.write_size);
-			break;
-#ifdef CONFIG_FLASH_EX_OP_ENABLED
-		case NOR_FLASH_CMD_READ_STS_REG:
-		{
-			uint8_t reg1, reg2;
-			struct npcx_ex_ops_uma_in op_in = {
-				.opcode = SPI_NOR_CMD_RDSR,
-				.tx_count = 0,
-				.addr_count = 0,
-			};
-			struct npcx_ex_ops_uma_out op_out = {
-				.rx_buf = &reg1,
-				.rx_count = 1,
-			};
-
-			/* Read status 0 reg */
-			flash_ex_op(flash_devices[flash_dev_idx_sel],
-						  FLASH_NPCX_EX_OP_EXEC_UMA,
-						  (uintptr_t)&op_in, &op_out);
-
-			op_in.opcode = SPI_NOR_CMD_RDSR2,
-			op_out.rx_buf = &reg2;
-			/* Read status 1 reg */
-			flash_ex_op(flash_devices[flash_dev_idx_sel],
-						  FLASH_NPCX_EX_OP_EXEC_UMA,
-						  (uintptr_t)&op_in, &op_out);
-
-			LOG_INF("READ NOR FLASH STATUS (%02x, %02x)", reg1, reg2);
-			break;
-		}
-		case NOR_FLASH_CMD_WRITE_STS_REG:
-		{
-			uint8_t reg[2];
-			struct npcx_ex_ops_uma_in op_in = {
-				.opcode = SPI_NOR_CMD_WREN,
-				.tx_count = 0,
-				.addr_count = 0,
-			};
-
-			reg[0] = nor_flash_test_objs.cmd_flash_wr_status_args.status[0];
-			reg[1] = nor_flash_test_objs.cmd_flash_wr_status_args.status[1];
-
-			LOG_INF("WRITE NOR FLASH STATUS (%02x, %02x)", reg[0], reg[1]);
-			/* Write enable */
-			flash_ex_op(flash_devices[flash_dev_idx_sel],
-						  FLASH_NPCX_EX_OP_EXEC_UMA,
-						  (uintptr_t)&op_in, NULL);
-
-			/* Write status regs */
-			op_in.opcode = SPI_NOR_CMD_WRSR;
-			op_in.tx_buf = reg;
-			op_in.tx_count = 2;
-			flash_ex_op(flash_devices[flash_dev_idx_sel],
-						  FLASH_NPCX_EX_OP_EXEC_UMA,
-						  (uintptr_t)&op_in, NULL);
-			break;
-		}
-		case NOR_FLASH_CMD_LOCK_SPI:
-		{
-			struct npcx_ex_ops_qspi_oper_in oper_in = {
-				.mask = NPCX_EX_OP_LOCK_UMA,
-			};
-
-			oper_in.enable = nor_flash_test_objs.cmd_flash_lock_args.lock;
-			flash_ex_op(flash_devices[flash_dev_idx_sel],
-						FLASH_NPCX_EX_OP_SET_QSPI_OPER,
-						(uintptr_t)&oper_in, NULL);
-			LOG_INF("SPI Spec is %d, %08x", oper_in.enable, oper_in.mask);
-			break;
-		}
-		case NOR_FLASH_CMD_WP_EN:
-		{
-			struct npcx_ex_ops_qspi_oper_in oper_in = {
-				.enable = true,
-				.mask = NPCX_EX_OP_INT_FLASH_WP,
-			};
-
-			flash_ex_op(flash_devices[flash_dev_idx_sel],
-						FLASH_NPCX_EX_OP_SET_QSPI_OPER,
-						(uintptr_t)&oper_in, NULL);
-			LOG_INF("SPI Spec is %d, %08x", oper_in.enable, oper_in.mask);
-			break;
-		}
-		case NOR_FLASH_CMD_GET_OPER:
-		{
-			struct npcx_ex_ops_qspi_oper_out oper_out;
-
-			flash_ex_op(flash_devices[flash_dev_idx_sel],
-						FLASH_NPCX_EX_OP_GET_QSPI_OPER,
-						(uintptr_t)NULL, &oper_out);
-
-			LOG_INF("SPI operation is %08x", oper_out.oper);
-			LOG_INF("UMA lock is %d", (oper_out.oper & NPCX_EX_OP_LOCK_UMA));
-			LOG_INF("WP is %d", (oper_out.oper & NPCX_EX_OP_INT_FLASH_WP));
-			break;
-		}
-#endif /* CONFIG_FLASH_EX_OP_ENABLED */
-		default:
-			break;
-		}
-	};
-}
-
-/* Test thread declaration */
-#define STACK_SIZE      1024
-#define THREAD_PRIORITY 1
-K_THREAD_DEFINE(nor_flash_thread_id, STACK_SIZE, nor_flash_thread_entry, NULL, NULL, NULL,
-		THREAD_PRIORITY, 0, -1);
-
-void main(void)
-{
-
-	/* Zephyr driver validation main */
-	LOG_INF("Start CI20 Validation Task");
-
-	/* Init thread */
-	k_thread_name_set(nor_flash_thread_id, "nor_flash_testing");
-	k_thread_start(nor_flash_thread_id);
 }
 
 static int nor_flash_read_id_handler(const struct shell *shell, size_t argc, char **argv)
 {
-	nor_flash_test_objs.cmd = NOR_FLASH_CMD_READ_ID;
-
-	/* Send event to task and wake it up */
-	k_sem_give(&nor_flash_test_objs.sem_sync);
-
+	shell_info(shell, "Read NOR FLASH ID");
+	/* Start to test */
+	test_objs.shell = shell;
+	nor_flash_read_id(test_objs.cur_dev);
 	return 0;
 }
 
@@ -762,8 +567,6 @@ static int nor_flash_erase_handler(const struct shell *shell, size_t argc, char 
 	char *eptr;
 	uint32_t addr;
 	uint32_t size;
-
-	nor_flash_test_objs.cmd = NOR_FLASH_CMD_ERASE;
 
 	/* Convert integer from string */
 	addr = strtoul(argv[1], &eptr, 0);
@@ -778,11 +581,10 @@ static int nor_flash_erase_handler(const struct shell *shell, size_t argc, char 
 		return -EINVAL;
 	}
 
-	nor_flash_test_objs.cmd_flash_erase_args.erase_addr = addr;
-	nor_flash_test_objs.cmd_flash_erase_args.erase_size = size;
-
-	/* Send event to task and wake it up */
-	k_sem_give(&nor_flash_test_objs.sem_sync);
+	shell_info(shell, "Erase NOR FLASH");
+	/* Start to test */
+	test_objs.shell = shell;
+	nor_flash_erase(test_objs.cur_dev, addr, size);
 
 	return 0;
 }
@@ -793,8 +595,6 @@ static int nor_flash_read_handler(const struct shell *shell, size_t argc, char *
 	uint32_t addr;
 	uint32_t size;
 
-	nor_flash_test_objs.cmd = NOR_FLASH_CMD_READ;
-
 	/* Convert integer from string */
 	addr = strtoul(argv[1], &eptr, 0);
 	if (*eptr != '\0') {
@@ -808,11 +608,10 @@ static int nor_flash_read_handler(const struct shell *shell, size_t argc, char *
 		return -EINVAL;
 	}
 
-	nor_flash_test_objs.cmd_flash_read_args.read_addr = addr;
-	nor_flash_test_objs.cmd_flash_read_args.read_size = size;
-
-	/* Send event to task and wake it up */
-	k_sem_give(&nor_flash_test_objs.sem_sync);
+	shell_info(shell, "Read NOR FLASH");
+	/* Start to test */
+	test_objs.shell = shell;
+	nor_flash_read(test_objs.cur_dev, addr, size);
 
 	return 0;
 }
@@ -823,8 +622,6 @@ static int nor_flash_write_handler(const struct shell *shell, size_t argc, char 
 	uint32_t addr;
 	uint32_t size;
 
-	nor_flash_test_objs.cmd = NOR_FLASH_CMD_WRITE;
-
 	/* Convert integer from string */
 	addr = strtoul(argv[1], &eptr, 0);
 	if (*eptr != '\0') {
@@ -838,11 +635,10 @@ static int nor_flash_write_handler(const struct shell *shell, size_t argc, char 
 		return -EINVAL;
 	}
 
-	nor_flash_test_objs.cmd_flash_write_args.write_addr = addr;
-	nor_flash_test_objs.cmd_flash_write_args.write_size = size;
-
-	/* Send event to task and wake it up */
-	k_sem_give(&nor_flash_test_objs.sem_sync);
+	shell_info(shell, "Write NOR FLASH");
+	/* Start to test */
+	test_objs.shell = shell;
+	nor_flash_write(test_objs.cur_dev, addr, size);
 
 	return 0;
 }
@@ -850,11 +646,29 @@ static int nor_flash_write_handler(const struct shell *shell, size_t argc, char 
 #ifdef CONFIG_FLASH_EX_OP_ENABLED
 static int nor_flash_read_sts_reg_handler(const struct shell *shell, size_t argc, char **argv)
 {
-	nor_flash_test_objs.cmd = NOR_FLASH_CMD_READ_STS_REG;
+	uint8_t reg1, reg2;
+	struct npcx_ex_ops_uma_in op_in = {
+		.opcode = SPI_NOR_CMD_RDSR,
+		.tx_count = 0,
+		.addr_count = 0,
+	};
 
-	/* Send event to task and wake it up */
-	k_sem_give(&nor_flash_test_objs.sem_sync);
+	struct npcx_ex_ops_uma_out op_out = {
+		.rx_buf = &reg1,
+		.rx_count = 1,
+	};
 
+	/* Start to test */
+	test_objs.shell = shell;
+
+	/* Read status 0 reg */
+	flash_ex_op(test_objs.cur_dev, FLASH_NPCX_EX_OP_EXEC_UMA, (uintptr_t)&op_in, &op_out);
+
+	/* Read status 1 reg */
+	op_in.opcode = SPI_NOR_CMD_RDSR2, op_out.rx_buf = &reg2;
+	flash_ex_op(test_objs.cur_dev, FLASH_NPCX_EX_OP_EXEC_UMA, (uintptr_t)&op_in, &op_out);
+
+	shell_info(shell, "READ NOR FLASH STATUS (%02x, %02x)", reg1, reg2);
 	return 0;
 }
 
@@ -862,8 +676,13 @@ static int nor_flash_write_sts_reg_handler(const struct shell *shell, size_t arg
 {
 	char *eptr;
 	uint32_t sts1, sts2;
+	uint8_t reg[2];
+	struct npcx_ex_ops_uma_in op_in = {
+		.opcode = SPI_NOR_CMD_WREN,
+		.tx_count = 0,
+		.addr_count = 0,
+	};
 
-	nor_flash_test_objs.cmd = NOR_FLASH_CMD_WRITE_STS_REG;
 	/* Convert integer from string */
 	sts1 = strtoul(argv[1], &eptr, 0);
 	if (*eptr != '\0') {
@@ -877,21 +696,41 @@ static int nor_flash_write_sts_reg_handler(const struct shell *shell, size_t arg
 		return -EINVAL;
 	}
 
-	nor_flash_test_objs.cmd_flash_wr_status_args.status[0] = (sts1 & 0xff);
-	nor_flash_test_objs.cmd_flash_wr_status_args.status[1] = (sts2 & 0xff);
+	/* Start to test */
+	test_objs.shell = shell;
 
-	/* Send event to task and wake it up */
-	k_sem_give(&nor_flash_test_objs.sem_sync);
+	reg[0] = (sts1 & 0xff);
+	reg[1] = (sts2 & 0xff);
+	shell_info(shell, "WRITE NOR FLASH STATUS (%02x, %02x)", reg[0], reg[1]);
+
+	/* Write enable */
+	flash_ex_op(test_objs.cur_dev,
+				  FLASH_NPCX_EX_OP_EXEC_UMA,
+				  (uintptr_t)&op_in, NULL);
+	/* Write status regs */
+	op_in.opcode = SPI_NOR_CMD_WRSR;
+	op_in.tx_buf = reg;
+	op_in.tx_count = 2;
+	flash_ex_op(test_objs.cur_dev,
+				  FLASH_NPCX_EX_OP_EXEC_UMA,
+				  (uintptr_t)&op_in, NULL);
 
 	return 0;
 }
 
 static int nor_flash_en_wp_handler(const struct shell *shell, size_t argc, char **argv)
 {
-	nor_flash_test_objs.cmd = NOR_FLASH_CMD_WP_EN;
 
-	/* Send event to task and wake it up */
-	k_sem_give(&nor_flash_test_objs.sem_sync);
+	struct npcx_ex_ops_qspi_oper_in oper_in = {
+		.enable = true,
+		.mask = NPCX_EX_OP_INT_FLASH_WP,
+	};
+
+	/* Start to test */
+	test_objs.shell = shell;
+	flash_ex_op(test_objs.cur_dev, FLASH_NPCX_EX_OP_SET_QSPI_OPER,
+				(uintptr_t)&oper_in, NULL);
+	shell_info(shell, "SPI Spec is %d, %08x", oper_in.enable, oper_in.mask);
 	return 0;
 }
 
@@ -899,6 +738,9 @@ static int nor_flash_lock_handler(const struct shell *shell, size_t argc, char *
 {
 	char *eptr;
 	int lock;
+	struct npcx_ex_ops_qspi_oper_in oper_in = {
+		.mask = NPCX_EX_OP_LOCK_UMA,
+	};
 
 	/* Convert integer from string */
 	lock = strtoul(argv[1], &eptr, 0);
@@ -907,20 +749,30 @@ static int nor_flash_lock_handler(const struct shell *shell, size_t argc, char *
 		return -EINVAL;
 	}
 
-	nor_flash_test_objs.cmd = NOR_FLASH_CMD_LOCK_SPI;
-	nor_flash_test_objs.cmd_flash_lock_args.lock = (lock == 1) ? true : false;
+	/* Start to test */
+	test_objs.shell = shell;
+	oper_in.enable = (lock == 1) ? true : false;
+	flash_ex_op(test_objs.cur_dev, FLASH_NPCX_EX_OP_SET_QSPI_OPER,
+				(uintptr_t)&oper_in, NULL);
+	shell_info(shell, "SPI Spec is %d, %08x", oper_in.enable, oper_in.mask);
 
-	/* Send event to task and wake it up */
-	k_sem_give(&nor_flash_test_objs.sem_sync);
 	return 0;
 }
 
 static int nor_flash_get_oper_handler(const struct shell *shell, size_t argc, char **argv)
 {
-	nor_flash_test_objs.cmd = NOR_FLASH_CMD_GET_OPER;
+	struct npcx_ex_ops_qspi_oper_out oper_out;
 
-	/* Send event to task and wake it up */
-	k_sem_give(&nor_flash_test_objs.sem_sync);
+	/* Start to test */
+	test_objs.shell = shell;
+
+	flash_ex_op(test_objs.cur_dev,
+				FLASH_NPCX_EX_OP_GET_QSPI_OPER,
+				(uintptr_t)NULL, &oper_out);
+	shell_info(shell, "SPI operation is %08x", oper_out.oper);
+	shell_info(shell, "UMA lock is %d", (oper_out.oper & NPCX_EX_OP_LOCK_UMA));
+	shell_info(shell, "WP is %d", (oper_out.oper & NPCX_EX_OP_INT_FLASH_WP));
+
 	return 0;
 }
 #endif /* CONFIG_FLASH_EX_OP_ENABLED */
@@ -929,27 +781,24 @@ static int nor_flash_get_oper_handler(const struct shell *shell, size_t argc, ch
 static int nor_flash_active_handler(const struct shell *shell, size_t argc, char **argv)
 {
 	char *eptr;
-	uint32_t active_dev;
+	uint32_t flash_dev_idx;
 
 	if (argc == 1) {
-		LOG_INF("Active flash device Index = %d", flash_dev_idx_sel);
 		return 0;
 	}
 
-	active_dev = strtoul(argv[1], &eptr, 0);
+	flash_dev_idx = strtoul(argv[1], &eptr, 0);
 	if (*eptr != '\0') {
 		shell_error(shell, "Invalid argument, '%s' is not an integer", argv[1]);
 		return -EINVAL;
 	}
 
-	if (active_dev < NUM_FLASH_DEVICE) {
-		flash_dev_idx_sel = active_dev;
-	} else {
-		flash_dev_idx_sel = 0;
+	if (flash_dev_idx < NUM_FLASH_DEVICE) {
+		test_objs.cur_dev =  flash_devices[flash_dev_idx];
 	}
 
-	LOG_INF("Select active flash device to [%d]%s", flash_dev_idx_sel,
-					flash_devices[flash_dev_idx_sel]->name);
+	shell_info(shell, "Select active flash device to [%d]%s", flash_dev_idx,
+		   test_objs.cur_dev->name);
 	return 0;
 }
 
@@ -957,10 +806,29 @@ static int nor_flash_list_handler(const struct shell *shell, size_t argc, char *
 {
 
 	for (int i = 0; i < NUM_FLASH_DEVICE; i++) {
-		LOG_INF("flash device [%d]:%s", i, flash_devices[i]->name);
+		shell_info(shell, "flash device [%d]:%s", i, flash_devices[i]->name);
 	}
-	LOG_INF("Current active index = %d", flash_dev_idx_sel);
+	shell_info(shell, "Active flash device to %s", test_objs.cur_dev->name);
+
 	return 0;
+}
+
+void main(void)
+{
+	/* Zephyr driver validation main */
+	LOG_INF("Start Nor Flash Validation");
+
+	/* Check nor spi flash devices */
+	for (int i = 0; i < NUM_FLASH_DEVICE; i++) {
+		if (!device_is_ready(flash_devices[i])) {
+			LOG_ERR("flash device %s is not ready", flash_devices[i]->name);
+			return;
+		}
+		LOG_INF("flash device [%d]:%s is ready", i, flash_devices[i]->name);
+	}
+
+	/* Save current device */
+	test_objs.cur_dev =  flash_devices[0];
 }
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_nor_flash,
