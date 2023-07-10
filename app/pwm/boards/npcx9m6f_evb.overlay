@@ -1,0 +1,61 @@
+/*
+ * Copyright (c) 2023 Nuvoton Technology Corporation.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+&pwm0 {
+	status = "okay";
+	label = "pwm0";
+	pinctrl-0 = <&pwm0_gpc3>;
+	pinctrl-names = "default";
+};
+
+&pwm1 {
+	status = "okay";
+	label = "pwm1";
+	pinctrl-0 = <&pwm1_gpc2>;
+	pinctrl-names = "default";
+};
+
+&pwm2 {
+	status = "okay";
+	label = "pwm2";
+	pinctrl-0 = <&pwm2_gpc4>;
+	pinctrl-names = "default";
+};
+
+&pwm3 {
+	status = "okay";
+	label = "pwm3";
+	pinctrl-0 = <&pwm3_gp80>;
+	pinctrl-names = "default";
+};
+
+&pwm4 {
+	status = "okay";
+	label = "pwm4";
+	pinctrl-0 = <&pwm4_gpb6>;
+	pinctrl-names = "default";
+};
+
+&pwm5 {
+	status = "okay";
+	label = "pwm5";
+	pinctrl-0 = <&pwm5_gpb7>;
+	pinctrl-names = "default";
+};
+
+&pwm6 {
+	status = "okay";
+	label = "pwm6";
+	pinctrl-0 = <&pwm6_gpc0>;
+	pinctrl-names = "default";
+};
+
+&pwm7 {
+	status = "okay";
+	label = "pwm7";
+	pinctrl-0 = <&pwm7_gp60>;
+	pinctrl-names = "default";
+};

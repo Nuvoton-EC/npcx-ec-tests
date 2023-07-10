@@ -1,0 +1,61 @@
+/*
+ * Copyright (c) 2023 Nuvoton Technology Corporation.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/ {
+	chosen {
+		zephyr,shell-uart = &uart1;
+	};
+
+	aliases {
+		/* For samples/drivers/spi_flash */
+		spi-flash0 = &int_flash;
+		spi-flash1 = &shd_flash0;
+		spi-flash2 = &shd_flash1;
+	};
+};
+
+&qspi_fiu1 {
+	status = "okay";
+	en-direct-access-2dev;
+
+	shd_flash0: w25q256@0 {
+		compatible ="nuvoton,npcx-fiu-nor";
+		size = <0x10000000>; /* /* 268435456 bits = 32M Bytes */
+		max-timeout = <86784>;
+		reg = <0>;
+		quad-enable-requirements = "S2B1v1";
+		status = "okay";
+
+		/* Enable 4Byte address mode when the flash size > 16MB */
+		/* enter-4byte-addr = <0x85>; */
+
+		/* quad spi bus configuration of nor flash device */
+		qspi-flags = <NPCX_QSPI_SW_CS0>;
+		mapped-addr = <0x68000000>;
+		pinctrl-0 = <&fiu_ext_io0_io1_clk_cs_gpa4_96_a2_a0
+			     &fiu_ext_quad_io2_io3_gp93_a7
+			     &ext_flash_tris_off>;
+		pinctrl-names = "default";
+	};
+
+	shd_flash1: w25q128@1 {
+		compatible ="nuvoton,npcx-fiu-nor";
+		size = <0x8000000>; /* 134217728 bits = 16 Mbytes */
+		max-timeout = <86784>;
+		reg = <0>;
+		quad-enable-requirements = "S2B1v1";
+		status = "okay";
+
+		/* quad spi bus configuration of nor flash device */
+		qspi-flags = <(NPCX_QSPI_SW_CS0 | NPCX_QSPI_SEC_FLASH_SL)>;
+		mapped-addr = <0x6C000000>;
+		pinctrl-0 = <&fiu_ext_io0_io1_clk_cs_gpa4_96_a2_a0
+			     &fiu_ext_quad_io2_io3_gp93_a7
+			     &ext_flash_tris_off
+			     &ext_flash_cs1_sl>;
+		pinctrl-names = "default";
+	};
+};

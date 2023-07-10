@@ -1,0 +1,9 @@
+sample:
+  name: CI20 NPCK driver testbench
+tests:
+  sample.board.npck_evb:
+    tags: serial uart
+    filter: CONFIG_SERIAL and
+            CONFIG_UART_INTERRUPT_DRIVEN and
+            CONFIG_SHELL")
+    harness: keyboard

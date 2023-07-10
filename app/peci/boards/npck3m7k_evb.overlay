@@ -1,0 +1,10 @@
+/*
+ * Copyright (c) 2023 Nuvoton Technology Corporation.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+&peci0 {
+	pinctrl-0 = <&peci_en>;
+	pinctrl-names = "default";
+};

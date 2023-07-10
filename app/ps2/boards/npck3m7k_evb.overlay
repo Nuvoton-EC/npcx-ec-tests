@@ -1,0 +1,18 @@
+/*
+ * Copyright (c) 2023 Nuvoton Technology Corporation.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+	&ps2_channel2 {
+		status = "okay";
+		pinctrl-0 = <&ps2_2_dat_clk_gp26_27>;
+		channel = <0x01>;
+    	pinctrl-names = "default";
+	};
+
+	&ps2_channel3 {
+		status = "okay";
+		pinctrl-0 = <&ps2_3_dat_clk_gp50_52>;
+		channel = <0x02>;
+    	pinctrl-names = "default";
+	};

@@ -1,0 +1,50 @@
+/*
+ * Copyright (c) 2023 Nuvoton Technology Corporation.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/ {
+	chosen {
+		zephyr,shell-uart = &uart1;
+	};
+
+	aliases {
+		/* For samples/drivers/spi_flash */
+		spi-flash0 = &int_flash;
+		spi-flash1 = &shd_flash0;
+	};
+};
+
+&qspi_fiu1 {
+	status = "okay";
+	en-direct-access-2dev;
+
+	shd_flash0: w25n01kv@0 {
+		compatible ="nuvoton,npcx-fiu-nand";
+		size = <0x40000000>; /* 1G bits = 128 Mbytes */
+		max-timeout = <86784>;
+		reg = <0>;
+
+		status = "okay";
+
+		/* quad spi bus configuration of nor flash device */
+		qspi-flags = <NPCX_QSPI_SW_CS0>;
+		mapped-addr = <0x68000000>;
+		pinctrl-0 = <&fiu_ext_io0_io1_clk_cs_gpa4_96_a2_a0
+			     &fiu_ext_quad_io2_io3_gp93_a7
+			     &ext_flash_tris_off>;
+		pinctrl-names = "default";
+
+		/* Read,Write mode */
+		read-mode  = "QUAD_OUTPUT";
+		write-mode = "QUAD_OUTPUT";
+
+		/* nand flash information */
+		page-size = <0x800>;    /* 1 page = 2048 bytes*/
+		page-num = <0x10000>;
+		block-size = <0x20000>; /* 1 block = 64 pages = 128K */
+		block-num = <0x400>;
+
+	};
+};

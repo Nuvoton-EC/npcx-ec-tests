@@ -1,0 +1,68 @@
+/*
+ * Copyright (c) 2023 Nuvoton Technology Corporation.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/ {
+	chosen {
+		zephyr,shell-uart = &uart1;
+	};
+};
+
+/ {
+	aliases {
+		/* For samples/drivers/spi_flash */
+		spi-flash0 = &nand_flash;
+	};
+};
+
+/* Disable shared nor flash. Otherwise, it will stock at initial
+ * statge when physical flash is nor-flash.
+ */
+&int_flash {
+    status = "disabled";
+};
+
+/* Add nand flash */
+&spi_fiu0 {
+	nand_flash: w25n01@1 {
+		compatible ="jedec,spi-nand";
+		status = "okay";
+
+		reg = <0>;
+		spi-max-frequency = <50000000>;
+		jedec-id = [ef aa 21];
+
+		/* 1G bits = 128 Mbytes */
+		size = <0x40000000>;
+
+		/* 2048 per page, 2114 per data buffer */
+		page-size = <0x800>;
+		page-num = <0x10000>;
+
+		/* 64 pages = 128K */
+		block-size = <0x20000>;
+		block-num = <0x400>;
+
+		/* bad block management: en-bbm; (not support currently) */
+	};
+};
+
+&espi0 {
+	espi_saf: espisaf@4000a000 {
+		compatible = "nuvoton,npcx-espi-saf";
+		reg = <0x4000a000 0x2000>;
+		interrupts = <11 3>; /* Interrupt for eSPI Bus */
+
+		/* clocks for eSPI modules */
+		clocks = <&pcc NPCX_CLOCK_BUS_APB3 NPCX_PWDWN_CTL6 7>;
+		/* WUI maps for eSPI signals */
+		espi-rst-wui = <&wui_espi_rst>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#vw-cells = <3>;
+		status = "okay";
+	};
+};
