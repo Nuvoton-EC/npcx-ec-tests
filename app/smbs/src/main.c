@@ -166,75 +166,75 @@ ZTEST(i2c_eeprom_target, test_eeprom_target)
 
 	for (int i = 0; i < 100; i++) {
 
-	/* Program differentiable data into the two devices through a back door
-	 * that doesn't use I2C.
-	 */
-	ret = eeprom_target_program(eeprom_0, eeprom_0_data, TEST_DATA_SIZE);
-	zassert_equal(ret, 0, "Failed to program EEPROM 0");
-	if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
-		ret = eeprom_target_program(eeprom_1, eeprom_1_data,
-					   TEST_DATA_SIZE);
-		zassert_equal(ret, 0, "Failed to program EEPROM 1");
-	}
+		/* Program differentiable data into the two devices through a back door
+		* that doesn't use I2C.
+		*/
+		ret = eeprom_target_program(eeprom_0, eeprom_0_data, TEST_DATA_SIZE);
+		zassert_equal(ret, 0, "Failed to program EEPROM 0");
+		if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
+			ret = eeprom_target_program(eeprom_1, eeprom_1_data,
+						TEST_DATA_SIZE);
+			zassert_equal(ret, 0, "Failed to program EEPROM 1");
+		}
 
-	/* Attach each EEPROM to its owning bus as a target device. */
-	ret = i2c_target_driver_register(eeprom_0);
-	zassert_equal(ret, 0, "Failed to register EEPROM 0");
+		/* Attach each EEPROM to its owning bus as a target device. */
+		ret = i2c_target_driver_register(eeprom_0);
+		zassert_equal(ret, 0, "Failed to register EEPROM 0");
 
-	if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
-		ret = i2c_target_driver_register(eeprom_1);
-		zassert_equal(ret, 0, "Failed to register EEPROM 1");
-	}
+		if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
+			ret = i2c_target_driver_register(eeprom_1);
+			zassert_equal(ret, 0, "Failed to register EEPROM 1");
+		}
 
-	/* The simulated EP0 is configured to be accessed as a target device
-	 * at addr_0 on i2c_0 and should expose eeprom_0_data.  The validation
-	 * uses i2c_1 as a bus master to access this device, which works because
-	 * i2c_0 and i2_c have their SDA (SCL) pins shorted (they are on the
-	 * same physical bus).  Thus in these calls i2c_1 is a master device
-	 * operating on the target address addr_0.
-	 *
-	 * Similarly validation of EP1 uses i2c_0 as a master with addr_1 and
-	 * eeprom_1_data for validation.
-	 */
-	ret = run_full_read(i2c_1, addr_0, eeprom_0_data);
-	zassert_equal(ret, 0,
-		     "Full I2C read from EP0 failed");
-	if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
-		ret = run_full_read(i2c_0, addr_1, eeprom_1_data);
+		/* The simulated EP0 is configured to be accessed as a target device
+		* at addr_0 on i2c_0 and should expose eeprom_0_data.  The validation
+		* uses i2c_1 as a bus master to access this device, which works because
+		* i2c_0 and i2_c have their SDA (SCL) pins shorted (they are on the
+		* same physical bus).  Thus in these calls i2c_1 is a master device
+		* operating on the target address addr_0.
+		*
+		* Similarly validation of EP1 uses i2c_0 as a master with addr_1 and
+		* eeprom_1_data for validation.
+		*/
+		ret = run_full_read(i2c_1, addr_0, eeprom_0_data);
 		zassert_equal(ret, 0,
-			      "Full I2C read from EP1 failed");
-	}
-
-	for (offset = 0 ; offset < TEST_DATA_SIZE-1 ; ++offset) {
-		zassert_equal(0, run_partial_read(i2c_1, addr_0,
-			      eeprom_0_data, offset),
-			      "Partial I2C read EP0 failed");
+				"Full I2C read from EP0 failed");
 		if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
-			zassert_equal(0, run_partial_read(i2c_0, addr_1,
-							  eeprom_1_data,
-							  offset),
-				      "Partial I2C read EP1 failed");
+			ret = run_full_read(i2c_0, addr_1, eeprom_1_data);
+			zassert_equal(ret, 0,
+					"Full I2C read from EP1 failed");
 		}
-	}
 
-	for (offset = 0 ; offset < TEST_DATA_SIZE-1 ; ++offset) {
-		zassert_equal(0, run_program_read(i2c_1, addr_0, offset),
-			      "Program I2C read EP0 failed");
+		for (offset = 0 ; offset < TEST_DATA_SIZE-1 ; ++offset) {
+			zassert_equal(0, run_partial_read(i2c_1, addr_0,
+					eeprom_0_data, offset),
+					"Partial I2C read EP0 failed");
+			if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
+				zassert_equal(0, run_partial_read(i2c_0, addr_1,
+								eeprom_1_data,
+								offset),
+						"Partial I2C read EP1 failed");
+			}
+		}
+
+		for (offset = 0 ; offset < TEST_DATA_SIZE-1 ; ++offset) {
+			zassert_equal(0, run_program_read(i2c_1, addr_0, offset),
+					"Program I2C read EP0 failed");
+			if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
+				zassert_equal(0, run_program_read(i2c_0, addr_1,
+								offset),
+						"Program I2C read EP1 failed");
+			}
+		}
+
+		/* Detach EEPROM */
+		ret = i2c_target_driver_unregister(eeprom_0);
+		zassert_equal(ret, 0, "Failed to unregister EEPROM 0");
+
 		if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
-			zassert_equal(0, run_program_read(i2c_0, addr_1,
-							  offset),
-				      "Program I2C read EP1 failed");
+			ret = i2c_target_driver_unregister(eeprom_1);
+			zassert_equal(ret, 0, "Failed to unregister EEPROM 1");
 		}
-	}
-
-	/* Detach EEPROM */
-	ret = i2c_target_driver_unregister(eeprom_0);
-	zassert_equal(ret, 0, "Failed to unregister EEPROM 0");
-
-	if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
-		ret = i2c_target_driver_unregister(eeprom_1);
-		zassert_equal(ret, 0, "Failed to unregister EEPROM 1");
-	}
 
 		/* Program differentiable data into the two devices through a back door
 		 * that doesn't use I2C.
@@ -261,7 +261,7 @@ ZTEST(i2c_eeprom_target, test_eeprom_target)
 		 * uses i2c_1 as a bus master to access this device, which works because
 		 * i2c_0 and i2_c have their SDA (SCL) pins shorted (they are on the
 		 * same physical bus).  Thus in these calls i2c_1 is a master device
-	 	 * operating on the target address addr_0.
+		 * operating on the target address addr_0.
 		 *
 		 * Similarly validation of EP1 uses i2c_0 as a master with addr_1 and
 		 * eeprom_1_data for validation.
