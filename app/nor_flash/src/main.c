@@ -186,7 +186,7 @@ static void summarize_dw11(const struct jesd216_param_header *php,
 
 	shell_printk("Page program: typ %u us, max %u us\n",
 		dw11.page_prog_us,
-		w11.typ_max_factor * dw11.page_prog_us);
+		dw11.typ_max_factor * dw11.page_prog_us);
 
 	shell_printk("Page size: %u By\n", dw11.page_size);
 }
@@ -651,11 +651,11 @@ static int nor_flash_read_sts_reg_handler(const struct shell *shell, size_t argc
 		.opcode = SPI_NOR_CMD_RDSR,
 		.tx_count = 0,
 		.addr_count = 0,
+		.rx_count = 1,
 	};
 
 	struct npcx_ex_ops_uma_out op_out = {
 		.rx_buf = &reg1,
-		.rx_count = 1,
 	};
 
 	/* Start to test */
@@ -770,8 +770,8 @@ static int nor_flash_get_oper_handler(const struct shell *shell, size_t argc, ch
 				FLASH_NPCX_EX_OP_GET_QSPI_OPER,
 				(uintptr_t)NULL, &oper_out);
 	shell_info(shell, "SPI operation is %08x", oper_out.oper);
-	shell_info(shell, "UMA lock is %d", (oper_out.oper & NPCX_EX_OP_LOCK_UMA));
-	shell_info(shell, "WP is %d", (oper_out.oper & NPCX_EX_OP_INT_FLASH_WP));
+	shell_info(shell, "UMA lock is %ld", (oper_out.oper & NPCX_EX_OP_LOCK_UMA));
+	shell_info(shell, "WP is %ld", (oper_out.oper & NPCX_EX_OP_INT_FLASH_WP));
 
 	return 0;
 }
