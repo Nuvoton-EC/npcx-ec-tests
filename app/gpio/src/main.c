@@ -19,24 +19,24 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 #define ARG_PIN   2
 #define ARG_ACTION   3
 
-typedef struct {
+struct gpio_index_t {
 	uint8_t port: 5;  /*!< GPIO Port Number */
 	uint8_t bit: 3;  /*!< GPIO Pin Number */
-} GPIO_PIN_T;
+};
 
 /* Test IO Type */
 
-typedef enum {
+enum {
 	IOTYPE_IO,
 	IOTYPE_INPUT_ONLY,
 	IOTYPE_OUTPUT_ONLY,
-} IOTYPE_T;
+};
 
 /* Test IO */
-typedef struct {
-	GPIO_PIN_T pin_no;
+struct gpio_test_pin_T {
+	gpio_index_t pin_no;
 	uint8_t iotype;
-} GPIO_TEST_PIN_T;
+};
 
 enum {
 	GPIO_GROUP_0 = 0,
@@ -60,7 +60,7 @@ enum {
 	GPIO_GROUP_STB0,
 	GPIO_GROUP_STB1,
 	GPIO_GROUP_COUNT,
-}GPIO_GROUP_T;
+} GPIO_GROUP_T;
 
 #define GPIO_PIN(grp, pin) { .port = GPIO_GROUP_##grp, .bit = pin }
 
@@ -191,10 +191,12 @@ enum {
 }
 #endif
 
-static const GPIO_TEST_PIN_T io_pins[] = GPIO_PINIO_TABLE;
+static const gpio_test_pin_T io_pins[] = GPIO_PINIO_TABLE;
 static const uint16_t sz_io_pins = ARRAY_SIZE(io_pins);
 const char io_name[GPIO_GROUP_COUNT][5] = {
-	"0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F","G","H","STB0","STB1"
+	"0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+	"A", "B", "C", "D", "E", "F", "G", "H",
+	"STB0", "STB1"
 };
 struct gpio_object {
 	const struct device *dev;
@@ -222,19 +224,19 @@ static int gpio_input_test(const struct shell *shell, size_t argc, char **argv)
 	int ret;
 	uint32_t gpio_group;
 
-
 	gpio_group = strtoul(argv[ARG_GROUP], NULL, 0);
 	gpio_objs[gpio_group].pin = strtoul(argv[ARG_PIN], NULL, 0);
 	gpio_objs[gpio_group].flags = GPIO_INPUT;
-	ret = gpio_pin_configure(gpio_objs[gpio_group].dev, gpio_objs[gpio_group].pin, gpio_objs[gpio_group].flags);
-	if(ret != 0)
-	{
+	ret = gpio_pin_configure(gpio_objs[gpio_group].dev,
+							gpio_objs[gpio_group].pin,
+							gpio_objs[gpio_group].flags);
+	if (ret != 0) {
 		LOG_ERR("failed to configure to %d\n", gpio_objs[gpio_group].flags);
 		return -EIO;
 	}
 
 	pin_in_val = gpio_pin_get_raw(gpio_objs[gpio_group].dev, gpio_objs[gpio_group].pin);
-	LOG_INF("Get value: %d",pin_in_val);
+	LOG_INF("Get value: %d", pin_in_val);
 
 	return 0;
 }
@@ -244,6 +246,7 @@ static int gpio_output_test(const struct shell *shell, size_t argc, char **argv)
 	int pin_val;
 	int ret;
 	uint32_t gpio_group;
+
 	gpio_group = strtoul(argv[ARG_GROUP], NULL, 0);
 	gpio_objs[gpio_group].pin = strtoul(argv[ARG_PIN], NULL, 0);
 
@@ -252,21 +255,21 @@ static int gpio_output_test(const struct shell *shell, size_t argc, char **argv)
 		gpio_objs[gpio_group].flags = GPIO_OUTPUT_HIGH;
 	else if (!strcmp(argv[ARG_TYPE], "output") && !strcmp(argv[ARG_ACTION], "low"))
 		gpio_objs[gpio_group].flags = GPIO_OUTPUT_LOW;
-	else
-	{
+	else {
 		LOG_ERR("Please enter the correct parameters");
 		return -EINVAL;
 	}
 
-	ret = gpio_pin_configure(gpio_objs[gpio_group].dev, gpio_objs[gpio_group].pin, gpio_objs[gpio_group].flags);
-	if(ret != 0)
-	{
+	ret = gpio_pin_configure(gpio_objs[gpio_group].dev,
+							gpio_objs[gpio_group].pin,
+							gpio_objs[gpio_group].flags);
+	if (ret != 0) {
 		LOG_ERR("failed to configure to %d\n", gpio_objs[gpio_group].flags);
 		return -EIO;
 	}
 	k_sleep(K_MSEC(1000));
 	pin_val = gpio_pin_get_raw(gpio_objs[gpio_group].dev, gpio_objs[gpio_group].pin);
-	LOG_INF("Get value: %d",pin_val);
+	LOG_INF("Get value: %d", pin_val);
 
 	return 0;
 }
@@ -276,6 +279,7 @@ static int gpio_pupd_test(const struct shell *shell, size_t argc, char **argv)
 	int pin_val;
 	int ret;
 	uint32_t gpio_group;
+
 	gpio_group = strtoul(argv[ARG_GROUP], NULL, 0);
 	gpio_objs[gpio_group].pin = strtoul(argv[ARG_PIN], NULL, 0);
 
@@ -284,21 +288,21 @@ static int gpio_pupd_test(const struct shell *shell, size_t argc, char **argv)
 		gpio_objs[gpio_group].flags = (GPIO_INPUT | GPIO_PULL_UP);
 	else if (!strcmp(argv[ARG_TYPE], "pupd") && !strcmp(argv[ARG_ACTION], "pd"))
 		gpio_objs[gpio_group].flags = (GPIO_INPUT | GPIO_PULL_DOWN);
-	else
-	{
+	else {
 		LOG_ERR("Please enter the correct parameters");
 		return -EINVAL;
 	}
 
-	ret = gpio_pin_configure(gpio_objs[gpio_group].dev, gpio_objs[gpio_group].pin, gpio_objs[gpio_group].flags);
-	if(ret != 0)
-	{
+	ret = gpio_pin_configure(gpio_objs[gpio_group].dev,
+							gpio_objs[gpio_group].pin,
+							gpio_objs[gpio_group].flags);
+	if (ret != 0) {
 		LOG_ERR("failed to configure to %d\n", gpio_objs[gpio_group].flags);
 		return -EIO;
 	}
 	k_sleep(K_MSEC(1000));
 	pin_val = gpio_pin_get_raw(gpio_objs[gpio_group].dev, gpio_objs[gpio_group].pin);
-	LOG_INF("Get value: %d",pin_val);
+	LOG_INF("Get value: %d", pin_val);
 
 	return 0;
 }
@@ -308,29 +312,29 @@ static int gpio_open_drain_test(const struct shell *shell, size_t argc, char **a
 	int pin_val;
 	int ret;
 	uint32_t gpio_group;
+
 	gpio_group = strtoul(argv[ARG_GROUP], NULL, 0);
 	gpio_objs[gpio_group].pin = strtoul(argv[ARG_PIN], NULL, 0);
-
 
 	if (!strcmp(argv[ARG_TYPE], "od") && !strcmp(argv[ARG_ACTION], "pu"))
 		gpio_objs[gpio_group].flags = (GPIO_OUTPUT_INIT_HIGH | GPIO_OPEN_DRAIN | GPIO_PULL_UP);
 	else if (!strcmp(argv[ARG_TYPE], "od") && !strcmp(argv[ARG_ACTION], "pd"))
 		gpio_objs[gpio_group].flags = (GPIO_OUTPUT_INIT_HIGH | GPIO_OPEN_DRAIN | GPIO_PULL_DOWN);
-	else
-	{
+	else {
 		LOG_ERR("Please enter the correct parameters");
 		return -EINVAL;
 	}
 
-	ret = gpio_pin_configure(gpio_objs[gpio_group].dev, gpio_objs[gpio_group].pin, gpio_objs[gpio_group].flags);
-	if(ret != 0)
-	{
+	ret = gpio_pin_configure(gpio_objs[gpio_group].dev,
+							gpio_objs[gpio_group].pin,
+							gpio_objs[gpio_group].flags);
+	if (ret != 0) {
 		LOG_ERR("failed to configure to %d\n", gpio_objs[gpio_group].flags);
 		return -EIO;
 	}
 	k_sleep(K_MSEC(1000));
 	pin_val = gpio_pin_get_raw(gpio_objs[gpio_group].dev, gpio_objs[gpio_group].pin);
-	LOG_INF("Get value: %d",pin_val);
+	LOG_INF("Get value: %d", pin_val);
 
 	return 0;
 }
@@ -339,12 +343,14 @@ static int gpio_switch_1V8_level(const struct shell *shell, size_t argc, char **
 {
 	int ret;
 	uint32_t io;
-	for( io = 0; io < sz_io_pins; io ++)
-	{
-		GPIO_PIN_T pin = io_pins[io].pin_no;
-		ret = gpio_pin_configure(gpio_objs[io_pins[io].pin_no.port].dev, io_pins[io].pin_no.bit, NPCX_GPIO_VOLTAGE_MASK);
-		if(ret != 0)
-		{
+
+	for (io = 0; io < sz_io_pins; io++) {
+		gpio_index_t pin = io_pins[io].pin_no;
+
+		ret = gpio_pin_configure(gpio_objs[io_pins[io].pin_no.port].dev,
+								io_pins[io].pin_no.bit,
+								NPCX_GPIO_VOLTAGE_MASK);
+		if (ret != 0) {
 			LOG_ERR("IO%s%01X Switch 1.8V Fail", io_name[pin.port], pin.bit);
 		}
 	}
