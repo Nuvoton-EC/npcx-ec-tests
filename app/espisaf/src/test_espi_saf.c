@@ -18,30 +18,28 @@
 #include <../soc/arm/nuvoton_npcx/common/soc_espi_saf.h>
 #include <zephyr/drivers/espi_saf.h>
 #include <zephyr/drivers/flash.h>
-#include "../../nand_flash/src/flash_access.h"
-#include "../../nand_flash/src/spi_nand.h"
 #include "saf_util.h"
 #endif
 
 LOG_MODULE_REGISTER(espi_saf);
 
-#define ESPI_FREQ_20MHZ	   			20u
-#define ESPI_FREQ_25MHZ    			25u
+#define ESPI_FREQ_20MHZ			20u
+#define ESPI_FREQ_25MHZ			25u
 
-#define K_WAIT_DELAY          		100u
+#define K_WAIT_DELAY			100u
 
 /* eSPI flash parameters */
-#define MAX_TEST_BUF_SIZE           1024u
-#define MAX_FLASH_REQUEST           64u
+#define MAX_TEST_BUF_SIZE		1024u
+#define MAX_FLASH_REQUEST		64u
 #if defined(CONFIG_SOC_SERIES_NPCK3)
 /* Max Flash tx buffer is 64-byte in NPCK EC */
-#define MAX_FLASH_WRITE_REQUEST     64u
+#define MAX_FLASH_WRITE_REQUEST		64u
 #else
 /* Max Flash tx buffer is 16-byte in NPCX EC */
-#define MAX_FLASH_WRITE_REQUEST     16u
+#define MAX_FLASH_WRITE_REQUEST		16u
 #endif
-#define MAX_FLASH_ERASE_BLOCK       64u
-#define TARGET_FLASH_REGION         0x72000ul
+#define MAX_FLASH_ERASE_BLOCK		64u
+#define TARGET_FLASH_REGION		0x72000ul
 
 /* eSPI event */
 #define EVENT_MASK            0x0000FFFFu
@@ -50,6 +48,8 @@ LOG_MODULE_REGISTER(espi_saf);
 #define EVENT_TYPE(x)         (x & EVENT_MASK)
 #define EVENT_DETAILS(x)      ((x & EVENT_DETAILS_MASK) >> EVENT_DETAILS_POS)
 
+#define NUM_FLASH_DEVICE ARRAY_SIZE(flash_devices)
+
 static const struct device *const espi_dev
 				 = DEVICE_DT_GET(DT_NODELABEL(espi0));
 #if defined(CONFIG_ESPI_SAF)
@@ -57,7 +57,7 @@ static const struct device *const saf_dev
 				 = DEVICE_DT_GET(DT_NODELABEL(espi_saf));
 #if defined(CONFIG_SOC_SERIES_NPCK3)
 static const struct device *const spi_dev
-				 = DEVICE_DT_GET(DT_ALIAS(spi_flash0));
+				 = DEVICE_DT_GET(DT_ALIAS(spi_flash1));
 #endif
 #endif
 
@@ -170,7 +170,7 @@ static void espi_ch_handler(const struct device *dev,
 
 static void vwire_handler(const struct device *dev,
 				struct espi_callback *cb,
-			  	struct espi_event event)
+				struct espi_event event)
 {
 	if (event.evt_type == ESPI_BUS_EVENT_VWIRE_RECEIVED) {
 		switch (event.evt_details) {
@@ -194,7 +194,7 @@ static void vwire_handler(const struct device *dev,
 /* eSPI peripheral channel notifications handler */
 static void periph_handler(const struct device *dev,
 				struct espi_callback *cb,
-			   	struct espi_event event)
+				struct espi_event event)
 {
 	uint8_t periph_type;
 	uint8_t periph_index;
@@ -218,93 +218,53 @@ static void periph_handler(const struct device *dev,
 
 #ifdef CONFIG_ESPI_FLASH_CHANNEL
 #if defined(CONFIG_ESPI_SAF)
-int flash_nand_read(const struct device *dev,
-						uint32_t addr,
-						uint8_t *dest,
-						uint16_t size) {
-	uint8_t* data_ptr = (uint8_t*)dest;
-	int rc;
-
-	LOG_INF("Read address: 0x%x, length: 0x%x", addr, size);
-
-	rc = spi_nand_single_read(dev, addr, data_ptr, size);
-
-	return rc;
-}
-
-int flash_nand_write(const struct device *dev,
-						uint32_t addr,
-			 			uint8_t *src,
-						uint16_t size) {
-	int rc;
-
-	LOG_INF("Write address: 0x%x, length: 0x%x", addr, size);
-
-	rc = spi_nand_write(dev, addr, src, size);
-
-	return rc;
-}
-
-int flash_nand_erase(const struct device *dev,
-								uint32_t addr,
-								uint16_t size) {
-	int rc;
-
-	LOG_INF("Erase address: 0x%x, length: 0x%x", addr, size);
-
-	rc = spi_nand_erase(dev, addr, _128KB_);
-
-	return rc;
-}
-
 int saf_npcx_flash_read(const struct device *dev,
-							struct saf_handle_data *info) {
-
+			struct saf_handle_data *info) {
 	struct espi_saf_npcx_pckt saf_data;
 	struct espi_saf_packet pckt_saf;
 	pckt_saf.flash_addr = info->address;
 	pckt_saf.len = info->length;
 	saf_data.tag = info->saf_tag;
-	saf_data.data = (uint8_t*)info->buf;
-	pckt_saf.buf = (uint8_t*)&saf_data;
+	saf_data.data = (uint8_t *)info->buf;
+	pckt_saf.buf = (uint8_t *)&saf_data;
 
 	return espi_saf_flash_read(dev, &pckt_saf);
 }
 
 int saf_npcx_flash_write(const struct device *dev,
-							struct saf_handle_data *info) {
+			struct saf_handle_data *info) {
 	struct espi_saf_npcx_pckt saf_data;
 	struct espi_saf_packet pckt_saf;
 	pckt_saf.flash_addr = info->address;
 	pckt_saf.len = info->length;
 	saf_data.tag = info->saf_tag;
-	saf_data.data = (uint8_t*)info->src;
-	pckt_saf.buf = (uint8_t*)&saf_data;
+	saf_data.data = (uint8_t *)info->src;
+	pckt_saf.buf = (uint8_t *)&saf_data;
 	return espi_saf_flash_write(dev, &pckt_saf);
 }
 
 int saf_npcx_flash_erase(const struct device *dev,
-							struct saf_handle_data *info) {
+			struct saf_handle_data *info) {
 	struct espi_saf_npcx_pckt saf_data;
 	struct espi_saf_packet pckt_saf;
 	pckt_saf.flash_addr = info->address;
 	pckt_saf.len = info->length;
 	saf_data.tag = info->saf_tag;
-	saf_data.data = (uint8_t*)info->buf;
-	pckt_saf.buf = (uint8_t*)&saf_data;
+	saf_data.data = (uint8_t *)info->buf;
+	pckt_saf.buf = (uint8_t *)&saf_data;
 	return espi_saf_flash_erase(dev, &pckt_saf);
 }
 
 int saf_npcx_flash_unsupport(const struct device *dev,
-									struct saf_handle_data *info)
+				struct saf_handle_data *info)
 {
 	struct espi_saf_npcx_pckt saf_data;
 	struct espi_saf_packet pckt_saf;
 	pckt_saf.flash_addr = info->address;
 	pckt_saf.len = info->length;
 	saf_data.tag = info->saf_tag;
-	saf_data.data = (uint8_t*)info->buf;
-	pckt_saf.buf = (uint8_t*)&saf_data;
+	saf_data.data = (uint8_t *)info->buf;
+	pckt_saf.buf = (uint8_t *)&saf_data;
 
 	return espi_saf_flash_unsuccess(dev, &pckt_saf);
 }
@@ -589,7 +549,7 @@ void test_espi_saf_init(void)
 #ifdef CONFIG_SOC_SERIES_NPCK3
 int cmd_flash_erase(void)
 {
-	spi_nand_erase(spi_dev, 0x0, _128KB_);
+	flash_erase(spi_dev, 0x0, _128KB_);
 	return 0;
 }
 
@@ -611,7 +571,7 @@ int cmd_flash_write(void)
 			data_buf[i]  = CAL_DATA_FROM_ADDR((addr_in + i));
 		}
 
-		spi_nand_write(spi_dev, addr_in, data_buf, wr_size);
+		flash_write(spi_dev, addr_in, data_buf, wr_size);
 		data_sz_in -= wr_size;
 		addr_in += wr_size;
 	}

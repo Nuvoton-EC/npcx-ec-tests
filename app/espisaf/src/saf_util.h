@@ -9,13 +9,6 @@
 
 #include <zephyr/sys/util.h>
 
-#define LE32(u32)                                                 \
-(  ((uint32_t)(            (u32) &       0xFF) << 24)             \
-|  ((uint32_t)((uint16_t)  (u32) &     0xFF00) <<  8)             \
-|  (          ((uint32_t)  (u32) &   0xFF0000) >>  8)             \
-|  (          ((uint32_t)  (u32) & 0xFF000000) >> 24)             \
-)
-
 #define MSN(u8)        ((uint8_t)((uint8_t)(u8) >> 4))
 #define LSN(u8)        ((uint8_t)((uint8_t)u8 & 0x0F))
 

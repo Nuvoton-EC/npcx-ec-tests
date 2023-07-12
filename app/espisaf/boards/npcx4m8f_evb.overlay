@@ -8,44 +8,46 @@
 	chosen {
 		zephyr,shell-uart = &uart1;
 	};
-};
 
-/ {
 	aliases {
 		/* For samples/drivers/spi_flash */
-		spi-flash0 = &nand_flash;
+		spi-flash0 = &int_flash;
+		spi-flash1 = &shd_flash0;
 	};
 };
 
-/* Disable shared nor flash. Otherwise, it will stock at initial
- * statge when physical flash is nor-flash.
- */
-&int_flash {
-    status = "disabled";
-};
-
 /* Add nand flash */
-&spi_fiu0 {
-	nand_flash: w25n01@1 {
-		compatible ="jedec,spi-nand";
+&qspi_fiu1 {
+	status = "okay";
+	en-direct-access-2dev;
+
+	shd_flash0: w25n01kv@0 {
+		compatible ="nuvoton,npcx-fiu-nand";
+		size = <0x40000000>; /* 1G bits = 128 Mbytes */
+		max-timeout = <86784>;
+		reg = <0>;
+
 		status = "okay";
 
-		reg = <0>;
-		spi-max-frequency = <50000000>;
-		jedec-id = [ef aa 21];
+		/* quad spi bus configuration of nor flash device */
+		qspi-flags = <(NPCX_QSPI_SW_CS0 | NPCX_QSPI_SEC_FLASH_SL)>;
+		mapped-addr = <0x68000000>;
+		pinctrl-0 = <&fiu_ext_io0_io1_clk_cs_gpa4_96_a2_a0
+			     &fiu_ext_quad_io2_io3_gp93_a7
+			     &ext_flash_tris_off
+				 &ext_flash_cs1_sl>;
+		pinctrl-names = "default";
 
-		/* 1G bits = 128 Mbytes */
-		size = <0x40000000>;
+		/* Read,Write mode */
+		read-mode  = "QUAD_OUTPUT";
+		write-mode = "QUAD_OUTPUT";
 
-		/* 2048 per page, 2114 per data buffer */
-		page-size = <0x800>;
+		/* nand flash information */
+		page-size = <0x800>;    /* 1 page = 2048 bytes*/
 		page-num = <0x10000>;
-
-		/* 64 pages = 128K */
-		block-size = <0x20000>;
+		block-size = <0x20000>; /* 1 block = 64 pages = 128K */
 		block-num = <0x400>;
 
-		/* bad block management: en-bbm; (not support currently) */
 	};
 };
 
