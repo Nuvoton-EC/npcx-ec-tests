@@ -19,9 +19,10 @@ LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 #define ARG_PIN   2
 #define ARG_ACTION   3
 
-struct gpio_index_t {
-	uint8_t port: 5;  /*!< GPIO Port Number */
-	uint8_t bit: 3;  /*!< GPIO Pin Number */
+struct test_pin_t {
+	uint8_t port;
+	uint8_t bit;
+	uint8_t iotype;
 };
 
 /* Test IO Type */
@@ -30,12 +31,6 @@ enum {
 	IOTYPE_IO,
 	IOTYPE_INPUT_ONLY,
 	IOTYPE_OUTPUT_ONLY,
-};
-
-/* Test IO */
-struct gpio_test_pin_T {
-	gpio_index_t pin_no;
-	uint8_t iotype;
 };
 
 enum {
@@ -62,136 +57,134 @@ enum {
 	GPIO_GROUP_COUNT,
 } GPIO_GROUP_T;
 
-#define GPIO_PIN(grp, pin) { .port = GPIO_GROUP_##grp, .bit = pin }
-
 #if defined(CONFIG_SOC_SERIES_NPCK3)
 #define GPIO_PINIO_TABLE { \
-	{ GPIO_PIN(0, 1), IOTYPE_IO }, /* Group 0 */       \
-	{ GPIO_PIN(0, 2), IOTYPE_IO },                     \
-	{ GPIO_PIN(0, 3), IOTYPE_IO },                     \
-	{ GPIO_PIN(0, 4), IOTYPE_IO },                     \
-	{ GPIO_PIN(0, 5), IOTYPE_IO },                     \
-	{ GPIO_PIN(0, 7), IOTYPE_IO },                     \
-	{ GPIO_PIN(1, 0), IOTYPE_IO }, /* Group 1 */       \
-	{ GPIO_PIN(1, 1), IOTYPE_IO },                     \
-	{ GPIO_PIN(1, 3), IOTYPE_IO },                     \
-	{ GPIO_PIN(1, 4), IOTYPE_IO },                     \
-	{ GPIO_PIN(1, 5), IOTYPE_IO },                     \
-	{ GPIO_PIN(1, 7), IOTYPE_IO },                     \
-	{ GPIO_PIN(2, 0), IOTYPE_IO }, /* Group 2 */       \
-	{ GPIO_PIN(2, 1), IOTYPE_IO },                     \
-	{ GPIO_PIN(2, 2), IOTYPE_IO },                     \
-	{ GPIO_PIN(2, 3), IOTYPE_IO },                     \
-	{ GPIO_PIN(2, 5), IOTYPE_IO },                     \
-	{ GPIO_PIN(2, 6), IOTYPE_IO },                     \
-	{ GPIO_PIN(2, 7), IOTYPE_IO },                     \
-	{ GPIO_PIN(3, 0), IOTYPE_IO }, /* Group 3 */       \
-	{ GPIO_PIN(3, 1), IOTYPE_IO },                     \
-	{ GPIO_PIN(3, 2), IOTYPE_IO },                     \
-	{ GPIO_PIN(3, 3), IOTYPE_IO },                     \
-	{ GPIO_PIN(3, 4), IOTYPE_IO },                     \
-	{ GPIO_PIN(3, 6), IOTYPE_IO },                     \
-	{ GPIO_PIN(4, 0), IOTYPE_IO }, /* Group 4 */       \
-	{ GPIO_PIN(4, 4), IOTYPE_IO },                     \
-	{ GPIO_PIN(4, 5), IOTYPE_IO },                     \
-	{ GPIO_PIN(4, 6), IOTYPE_IO },                     \
-	{ GPIO_PIN(4, 7), IOTYPE_IO },                     \
-	{ GPIO_PIN(5, 0), IOTYPE_IO }, /* Group 5 */       \
-	{ GPIO_PIN(5, 1), IOTYPE_IO },                     \
-	{ GPIO_PIN(5, 2), IOTYPE_IO },                     \
-	{ GPIO_PIN(5, 3), IOTYPE_IO },                     \
-	{ GPIO_PIN(5, 4), IOTYPE_IO },                     \
-	{ GPIO_PIN(5, 5), IOTYPE_IO },                     \
-	{ GPIO_PIN(5, 6), IOTYPE_IO },                     \
-	{ GPIO_PIN(5, 7), IOTYPE_IO },                     \
-	{ GPIO_PIN(6, 0), IOTYPE_IO }, /* Group 6 */       \
-	{ GPIO_PIN(6, 1), IOTYPE_IO },                     \
-	{ GPIO_PIN(6, 2), IOTYPE_IO },                     \
-	{ GPIO_PIN(6, 3), IOTYPE_IO },                     \
-	{ GPIO_PIN(6, 4), IOTYPE_IO },                     \
-	{ GPIO_PIN(6, 5), IOTYPE_IO },                     \
-	{ GPIO_PIN(6, 6), IOTYPE_IO },                     \
-	{ GPIO_PIN(6, 7), IOTYPE_IO },                     \
-	{ GPIO_PIN(7, 0), IOTYPE_INPUT_ONLY },/* Group 7 */\
-	{ GPIO_PIN(7, 2), IOTYPE_IO },                     \
-	{ GPIO_PIN(7, 3), IOTYPE_IO },                     \
-	{ GPIO_PIN(7, 4), IOTYPE_IO },                     \
-	{ GPIO_PIN(7, 5), IOTYPE_IO },                     \
-	{ GPIO_PIN(7, 6), IOTYPE_IO },                     \
-	{ GPIO_PIN(7, 7), IOTYPE_IO },                     \
-	{ GPIO_PIN(8, 1), IOTYPE_IO }, /* Group 8 */       \
-	{ GPIO_PIN(8, 3), IOTYPE_IO },                     \
-	{ GPIO_PIN(8, 5), IOTYPE_IO },                     \
-	{ GPIO_PIN(8, 6), IOTYPE_IO },                     \
-	{ GPIO_PIN(8, 7), IOTYPE_IO },                     \
-	{ GPIO_PIN(9, 0), IOTYPE_IO }, /* Group 9 */       \
-	{ GPIO_PIN(9, 1), IOTYPE_IO },                     \
-	{ GPIO_PIN(9, 2), IOTYPE_IO },                     \
-	{ GPIO_PIN(9, 3), IOTYPE_IO },                     \
-	{ GPIO_PIN(9, 4), IOTYPE_IO },                     \
-	{ GPIO_PIN(A, 0), IOTYPE_IO }, /* Group A */       \
-	{ GPIO_PIN(A, 1), IOTYPE_IO },                     \
-	{ GPIO_PIN(A, 2), IOTYPE_IO },                     \
-	{ GPIO_PIN(A, 3), IOTYPE_IO },                     \
-	{ GPIO_PIN(A, 4), IOTYPE_IO },                     \
-	{ GPIO_PIN(A, 5), IOTYPE_IO },                     \
-	{ GPIO_PIN(A, 6), IOTYPE_IO },                     \
-	{ GPIO_PIN(A, 7), IOTYPE_IO },                     \
-	{ GPIO_PIN(B, 0), IOTYPE_IO }, /* Group B */       \
-	{ GPIO_PIN(B, 1), IOTYPE_IO },                     \
-	{ GPIO_PIN(B, 2), IOTYPE_IO },                     \
-	{ GPIO_PIN(B, 3), IOTYPE_IO },                     \
-	{ GPIO_PIN(B, 4), IOTYPE_IO },                     \
-	{ GPIO_PIN(B, 5), IOTYPE_IO },                     \
-	{ GPIO_PIN(B, 6), IOTYPE_IO },                     \
-	{ GPIO_PIN(B, 7), IOTYPE_IO },                     \
-	{ GPIO_PIN(C, 0), IOTYPE_IO }, /* Group C */       \
-	{ GPIO_PIN(C, 1), IOTYPE_IO },                     \
-	{ GPIO_PIN(C, 2), IOTYPE_IO },                     \
-	{ GPIO_PIN(C, 3), IOTYPE_IO },                     \
-	{ GPIO_PIN(C, 4), IOTYPE_IO },                     \
-	{ GPIO_PIN(C, 5), IOTYPE_IO },                     \
-	{ GPIO_PIN(C, 6), IOTYPE_IO },                     \
-	{ GPIO_PIN(C, 7), IOTYPE_IO },                     \
-	{ GPIO_PIN(D, 0), IOTYPE_IO }, /* Group D */       \
-	{ GPIO_PIN(D, 3), IOTYPE_IO },                     \
-	{ GPIO_PIN(D, 4), IOTYPE_IO },                     \
-	{ GPIO_PIN(D, 5), IOTYPE_IO },                     \
-	{ GPIO_PIN(D, 6), IOTYPE_IO },                     \
-	{ GPIO_PIN(D, 7), IOTYPE_IO },                     \
-	{ GPIO_PIN(E, 0), IOTYPE_IO }, /* Group E */       \
-	{ GPIO_PIN(E, 1), IOTYPE_IO },                     \
-	{ GPIO_PIN(E, 2), IOTYPE_IO },                     \
-	{ GPIO_PIN(E, 3), IOTYPE_IO },                     \
-	{ GPIO_PIN(E, 4), IOTYPE_IO },                     \
-	{ GPIO_PIN(E, 5), IOTYPE_IO },                     \
-	{ GPIO_PIN(E, 6), IOTYPE_IO },                     \
-	{ GPIO_PIN(F, 0), IOTYPE_IO }, /* Group F */       \
-	{ GPIO_PIN(F, 6), IOTYPE_IO },                     \
-	{ GPIO_PIN(F, 7), IOTYPE_IO },                     \
-	{ GPIO_PIN(G, 5), IOTYPE_IO }, /* Group G */       \
-	{ GPIO_PIN(G, 6), IOTYPE_IO },                     \
-	{ GPIO_PIN(G, 7), IOTYPE_IO },                     \
-	{ GPIO_PIN(H, 0), IOTYPE_IO }, /* Group H */       \
-	{ GPIO_PIN(H, 1), IOTYPE_IO },                     \
-	{ GPIO_PIN(H, 2), IOTYPE_IO },                     \
-	{ GPIO_PIN(H, 4), IOTYPE_IO },                     \
-	{ GPIO_PIN(STB0, 0), IOTYPE_IO },/* Group STBY0 */\
-	{ GPIO_PIN(STB0, 1), IOTYPE_IO },                 \
-	{ GPIO_PIN(STB0, 2), IOTYPE_IO },                 \
-	{ GPIO_PIN(STB0, 3), IOTYPE_IO },                 \
-	{ GPIO_PIN(STB0, 4), IOTYPE_IO },                 \
-	{ GPIO_PIN(STB1, 1), IOTYPE_IO },/* Group STBY1 */\
-	{ GPIO_PIN(STB1, 2), IOTYPE_IO },                 \
-	{ GPIO_PIN(STB1, 3), IOTYPE_IO },                 \
-	{ GPIO_PIN(STB1, 4), IOTYPE_IO },                 \
-	{ GPIO_PIN(STB1, 5), IOTYPE_IO },                 \
-	{ GPIO_PIN(STB1, 6), IOTYPE_IO },                 \
-	{ GPIO_PIN(STB1, 7), IOTYPE_OUTPUT_ONLY },        \
+	{ GPIO_GROUP_0, 1, IOTYPE_IO },			\
+	{ GPIO_GROUP_0, 2, IOTYPE_IO },			\
+	{ GPIO_GROUP_0, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_0, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_0, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_0, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_1, 0, IOTYPE_IO },         \
+	{ GPIO_GROUP_1, 1, IOTYPE_IO },         \
+	{ GPIO_GROUP_1, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_1, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_1, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_1, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_2, 0, IOTYPE_IO },         \
+	{ GPIO_GROUP_2, 1, IOTYPE_IO },         \
+	{ GPIO_GROUP_2, 2, IOTYPE_IO },         \
+	{ GPIO_GROUP_2, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_2, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_2, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_2, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_3, 0, IOTYPE_IO },         \
+	{ GPIO_GROUP_3, 1, IOTYPE_IO },         \
+	{ GPIO_GROUP_3, 2, IOTYPE_IO },         \
+	{ GPIO_GROUP_3, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_3, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_3, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_4, 0, IOTYPE_IO },         \
+	{ GPIO_GROUP_4, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_4, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_4, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_4, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_5, 0, IOTYPE_IO },         \
+	{ GPIO_GROUP_5, 1, IOTYPE_IO },         \
+	{ GPIO_GROUP_5, 2, IOTYPE_IO },         \
+	{ GPIO_GROUP_5, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_5, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_5, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_5, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_5, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_6, 0, IOTYPE_IO },         \
+	{ GPIO_GROUP_6, 1, IOTYPE_IO },         \
+	{ GPIO_GROUP_6, 2, IOTYPE_IO },         \
+	{ GPIO_GROUP_6, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_6, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_6, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_6, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_6, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_7, 0, IOTYPE_INPUT_ONLY }, \
+	{ GPIO_GROUP_7, 2, IOTYPE_IO },         \
+	{ GPIO_GROUP_7, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_7, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_7, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_7, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_7, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_8, 1, IOTYPE_IO },         \
+	{ GPIO_GROUP_8, 3, IOTYPE_IO },			\
+	{ GPIO_GROUP_8, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_8, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_8, 7, IOTYPE_IO },			\
+	{ GPIO_GROUP_9, 0, IOTYPE_IO },         \
+	{ GPIO_GROUP_9, 1, IOTYPE_IO },         \
+	{ GPIO_GROUP_9, 2, IOTYPE_IO },         \
+	{ GPIO_GROUP_9, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_9, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_A, 0, IOTYPE_IO },         \
+	{ GPIO_GROUP_A, 1, IOTYPE_IO },         \
+	{ GPIO_GROUP_A, 2, IOTYPE_IO },         \
+	{ GPIO_GROUP_A, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_A, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_A, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_A, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_A, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_B, 0, IOTYPE_IO },         \
+	{ GPIO_GROUP_B, 1, IOTYPE_IO },         \
+	{ GPIO_GROUP_B, 2, IOTYPE_IO },         \
+	{ GPIO_GROUP_B, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_B, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_B, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_B, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_B, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_C, 0, IOTYPE_IO },         \
+	{ GPIO_GROUP_C, 1, IOTYPE_IO },         \
+	{ GPIO_GROUP_C, 2, IOTYPE_IO },         \
+	{ GPIO_GROUP_C, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_C, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_C, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_C, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_C, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_D, 0, IOTYPE_IO },         \
+	{ GPIO_GROUP_D, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_D, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_D, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_D, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_D, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_E, 0, IOTYPE_IO },         \
+	{ GPIO_GROUP_E, 1, IOTYPE_IO },         \
+	{ GPIO_GROUP_E, 2, IOTYPE_IO },         \
+	{ GPIO_GROUP_E, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_E, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_E, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_E, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_F, 0, IOTYPE_IO },         \
+	{ GPIO_GROUP_F, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_F, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_G, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_G, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_G, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_H, 0, IOTYPE_IO },         \
+	{ GPIO_GROUP_H, 1, IOTYPE_IO },         \
+	{ GPIO_GROUP_H, 2, IOTYPE_IO },         \
+	{ GPIO_GROUP_H, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_STB0, 0, IOTYPE_IO },      \
+	{ GPIO_GROUP_STB0, 1, IOTYPE_IO },      \
+	{ GPIO_GROUP_STB0, 2, IOTYPE_IO },      \
+	{ GPIO_GROUP_STB0, 3, IOTYPE_IO },      \
+	{ GPIO_GROUP_STB0, 4, IOTYPE_IO },      \
+	{ GPIO_GROUP_STB1, 1, IOTYPE_IO },      \
+	{ GPIO_GROUP_STB1, 2, IOTYPE_IO },      \
+	{ GPIO_GROUP_STB1, 3, IOTYPE_IO },      \
+	{ GPIO_GROUP_STB1, 4, IOTYPE_IO },      \
+	{ GPIO_GROUP_STB1, 5, IOTYPE_IO },      \
+	{ GPIO_GROUP_STB1, 6, IOTYPE_IO },      \
+	{ GPIO_GROUP_STB1, 7, IOTYPE_OUTPUT_ONLY },        \
 }
 #endif
 
-static const gpio_test_pin_T io_pins[] = GPIO_PINIO_TABLE;
+static struct test_pin_t io_pins[] = GPIO_PINIO_TABLE;
 static const uint16_t sz_io_pins = ARRAY_SIZE(io_pins);
 const char io_name[GPIO_GROUP_COUNT][5] = {
 	"0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
@@ -345,13 +338,12 @@ static int gpio_switch_1V8_level(const struct shell *shell, size_t argc, char **
 	uint32_t io;
 
 	for (io = 0; io < sz_io_pins; io++) {
-		gpio_index_t pin = io_pins[io].pin_no;
-
-		ret = gpio_pin_configure(gpio_objs[io_pins[io].pin_no.port].dev,
-								io_pins[io].pin_no.bit,
+		ret = gpio_pin_configure(gpio_objs[io_pins[io].port].dev,
+								io_pins[io].bit,
 								NPCX_GPIO_VOLTAGE_MASK);
 		if (ret != 0) {
-			LOG_ERR("IO%s%01X Switch 1.8V Fail", io_name[pin.port], pin.bit);
+			LOG_ERR("IO%s%01X Switch 1.8V Fail",
+				io_name[io_pins[io].port], io_pins[io].bit);
 		}
 	}
 
