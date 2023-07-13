@@ -66,7 +66,7 @@ static int pwm_cmd_get_cycles_per_sec(const struct shell *shell, size_t argc, ch
 	uint64_t cycles_per_sec;
 	uint32_t channel = strtoul(argv[ARG_CHANNEL], NULL, 0);
 
-	if (pwm_get_cycles_per_sec(pwm_objs[channel].dev, channel, &cycles_per_sec)){
+	if (pwm_get_cycles_per_sec(pwm_objs[channel].dev, channel, &cycles_per_sec)) {
 		LOG_ERR("Fail to get cycles per sec\n");
 		return -EIO;
 	}
@@ -123,7 +123,8 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_pwm,
 	SHELL_CMD_ARG(list, NULL, "pwm list - show pwm status", pwm_cmd_list, 0, 0),
 	SHELL_CMD_ARG(set, NULL, "pwm set <auto/chan> <period> <pulse> <flags>",
 			pwm_cmd_set, 5, 0),
-	SHELL_CMD_ARG(get, NULL, "pwm get <chan> - cycles per sec ", pwm_cmd_get_cycles_per_sec, 2, 0),
+	SHELL_CMD_ARG(get, NULL, "pwm get <chan> - cycles per sec ",
+			pwm_cmd_get_cycles_per_sec, 2, 0),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 );
 SHELL_CMD_REGISTER(pwm, &sub_pwm, "pwm validation commands", NULL);
