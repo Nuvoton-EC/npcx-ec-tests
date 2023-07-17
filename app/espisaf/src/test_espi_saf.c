@@ -42,12 +42,12 @@ LOG_MODULE_REGISTER(espi_saf);
 #define TARGET_FLASH_REGION		0x72000ul
 
 /* eSPI event */
-#define EVENT_MASK            0x0000FFFFu
-#define EVENT_DETAILS_MASK    0xFFFF0000u
-#define EVENT_DETAILS_POS     16u
-#define EVENT_TYPE(x)         (x & EVENT_MASK)
-#define EVENT_DETAILS(x)      ((x & EVENT_DETAILS_MASK) >> EVENT_DETAILS_POS)
-
+#define EVENT_MASK				0x0000FFFFu
+#define EVENT_DETAILS_MASK		0xFFFF0000u
+#define EVENT_DETAILS_POS		16u
+#define EVENT_TYPE(x)			(x & EVENT_MASK)
+#define EVENT_DETAILS(x)		((x & EVENT_DETAILS_MASK) >> EVENT_DETAILS_POS)
+#define SPI_NAND_PAGE_SIZE		0x0800U
 #define NUM_FLASH_DEVICE ARRAY_SIZE(flash_devices)
 
 static const struct device *const espi_dev
@@ -55,10 +55,8 @@ static const struct device *const espi_dev
 #if defined(CONFIG_ESPI_SAF)
 static const struct device *const saf_dev
 				 = DEVICE_DT_GET(DT_NODELABEL(espi_saf));
-#if defined(CONFIG_SOC_SERIES_NPCK3)
 static const struct device *const spi_dev
 				 = DEVICE_DT_GET(DT_ALIAS(spi_flash1));
-#endif
 #endif
 
 static struct espi_callback espi_bus_cb;
@@ -219,9 +217,11 @@ static void periph_handler(const struct device *dev,
 #ifdef CONFIG_ESPI_FLASH_CHANNEL
 #if defined(CONFIG_ESPI_SAF)
 int saf_npcx_flash_read(const struct device *dev,
-			struct saf_handle_data *info) {
+			struct saf_handle_data *info)
+{
 	struct espi_saf_npcx_pckt saf_data;
 	struct espi_saf_packet pckt_saf;
+
 	pckt_saf.flash_addr = info->address;
 	pckt_saf.len = info->length;
 	saf_data.tag = info->saf_tag;
@@ -232,9 +232,11 @@ int saf_npcx_flash_read(const struct device *dev,
 }
 
 int saf_npcx_flash_write(const struct device *dev,
-			struct saf_handle_data *info) {
+			struct saf_handle_data *info)
+{
 	struct espi_saf_npcx_pckt saf_data;
 	struct espi_saf_packet pckt_saf;
+
 	pckt_saf.flash_addr = info->address;
 	pckt_saf.len = info->length;
 	saf_data.tag = info->saf_tag;
@@ -244,9 +246,11 @@ int saf_npcx_flash_write(const struct device *dev,
 }
 
 int saf_npcx_flash_erase(const struct device *dev,
-			struct saf_handle_data *info) {
+			struct saf_handle_data *info)
+{
 	struct espi_saf_npcx_pckt saf_data;
 	struct espi_saf_packet pckt_saf;
+
 	pckt_saf.flash_addr = info->address;
 	pckt_saf.len = info->length;
 	saf_data.tag = info->saf_tag;
@@ -260,6 +264,7 @@ int saf_npcx_flash_unsupport(const struct device *dev,
 {
 	struct espi_saf_npcx_pckt saf_data;
 	struct espi_saf_packet pckt_saf;
+
 	pckt_saf.flash_addr = info->address;
 	pckt_saf.len = info->length;
 	saf_data.tag = info->saf_tag;
@@ -297,9 +302,8 @@ void espi_saf_handler(const struct device *dev,
 	/* Get written data if eSPI SAF write */
 	if ((pckt->saf_type & 0xF) == ESPI_FLASH_SAF_REQ_WRITE) {
 		roundsize = DIV_CEILING(pckt->length, sizeof(uint32_t));
-		for (i = 0; i < roundsize; i++) {
+		for (i = 0; i < roundsize; i++)
 			pckt->src[i] = *(data_ptr + (i + 2));
-		}
 	}
 }
 
@@ -384,9 +388,8 @@ static int wait_for_vwire(const struct device *espi_dev,
 			return -EIO;
 		}
 
-		if (exp_level == level) {
+		if (exp_level == level)
 			break;
-		}
 
 		k_usleep(K_WAIT_DELAY);
 		loop_cnt--;
@@ -405,16 +408,14 @@ static int wait_for_espi_reset(uint8_t exp_sts)
 	uint16_t loop_cnt = CONFIG_ESPI_VIRTUAL_WIRE_TIMEOUT;
 
 	do {
-		if (exp_sts == espi_rst_sts) {
+		if (exp_sts == espi_rst_sts)
 			break;
-		}
 		k_usleep(K_WAIT_DELAY);
 		loop_cnt--;
 	} while (loop_cnt > 0);
 
-	if (loop_cnt == 0) {
+	if (loop_cnt == 0)
 		return -ETIMEDOUT;
-	}
 
 	return 0;
 }
@@ -510,20 +511,19 @@ void flash_handler(struct k_work *item)
 	int ret = 0;
 
 	switch (info->saf_type & 0x0F) {
-		case ESPI_FLASH_SAF_REQ_READ:
-			ret = saf_npcx_flash_read(saf_dev, &saf_data);
-			break;
-		case ESPI_FLASH_SAF_REQ_ERASE:
-			ret = saf_npcx_flash_erase(saf_dev, &saf_data);
-			break;
-		case ESPI_FLASH_SAF_REQ_WRITE:
-			ret = saf_npcx_flash_write(saf_dev, &saf_data);
-			break;
+	case ESPI_FLASH_SAF_REQ_READ:
+		ret = saf_npcx_flash_read(saf_dev, &saf_data);
+		break;
+	case ESPI_FLASH_SAF_REQ_ERASE:
+		ret = saf_npcx_flash_erase(saf_dev, &saf_data);
+		break;
+	case ESPI_FLASH_SAF_REQ_WRITE:
+		ret = saf_npcx_flash_write(saf_dev, &saf_data);
+		break;
 	}
 
-	if (ret != 0) {
+	if (ret != 0)
 		ret = saf_npcx_flash_unsupport(saf_dev, &saf_data);
-	}
 }
 
 /* Test thread declaration */
@@ -546,7 +546,6 @@ void test_espi_saf_init(void)
 }
 
 #ifdef CONFIG_ESPI_FLASH_CHANNEL
-#ifdef CONFIG_SOC_SERIES_NPCK3
 int cmd_flash_erase(void)
 {
 	flash_erase(spi_dev, 0x0, _128KB_);
@@ -567,9 +566,8 @@ int cmd_flash_write(void)
 			wr_size = data_sz_in;
 
 		memset(data_buf, 0, sizeof(data_buf));
-		for (int i = 0 ; i < wr_size ; i++) {
+		for (int i = 0 ; i < wr_size ; i++)
 			data_buf[i]  = CAL_DATA_FROM_ADDR((addr_in + i));
-		}
 
 		flash_write(spi_dev, addr_in, data_buf, wr_size);
 		data_sz_in -= wr_size;
@@ -577,26 +575,19 @@ int cmd_flash_write(void)
 	}
 	return 0;
 }
-#endif
+
 int cmd_flash_protection(void)
 {
 	espi_saf_set_protection_regions(saf_dev, &saf_pr_flash);
 	return 0;
 }
 
-#if defined(CONFIG_SOC_SERIES_NPCK3)
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_espi,
 	SHELL_CMD(flash_erase, NULL, "erase NAND flash", cmd_flash_erase),
 	SHELL_CMD(write_gold, NULL, "write NAND flash", cmd_flash_write),
 	SHELL_CMD(set_pr, NULL, "set protection region", cmd_flash_protection),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 );
-#else
-SHELL_STATIC_SUBCMD_SET_CREATE(sub_espi,
-	SHELL_CMD(set_pr, NULL, "set protection region", cmd_flash_protection),
-	SHELL_SUBCMD_SET_END /* Array terminated. */
-);
-#endif
 
 SHELL_CMD_REGISTER(espi_saf, &sub_espi, "eSPI Commands", NULL);
 #endif /* CONFIG_ESPI_FLASH_CHANNEL */

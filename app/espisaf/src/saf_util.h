@@ -17,17 +17,13 @@
 
 #define MSW(u32)        ((uint16_t)((uint32_t)(u32) >> 16))
 #define LSW(u32)        ((uint16_t)(u32))
-#define MSB0(u32)       ((uint8_t)(((uint32_t)(u32) & 0xFF000000) >> 24))
-#define MSB1(u32)       ((uint8_t)(((uint32_t)(u32) & 0xFF0000) >> 16))
-#define MSB2(u32)       ((uint8_t)(((uint16_t)(u32) & 0xFF00) >> 8))
-#define MSB3(u32)       ((uint8_t)((u32) & 0xFF))
 #define LSB0(u32)       MSB3(u32)
 #define LSB1(u32)       MSB2(u32)
 #define LSB2(u32)       MSB1(u32)
 #define LSB3(u32)       MSB0(u32)
 
 #define MAKE8(nlo, nhi)                                           \
-    ((uint8_t)(((uint8_t)(nlo)) | (((uint8_t)(nhi)) << 4)))
+	((uint8_t)(((uint8_t)(nlo)) | (((uint8_t)(nhi)) << 4)))
 #define DIV_CEILING(a, b)     (((a) + ((b)-1)) / (b))
 #define MASK_BIT(nb)               (1L<<(nb))
 
@@ -57,25 +53,23 @@
 #define FLASH_PRTR_HADDR(n)                 (0x4000A650 + 4 * n)
 #define FLASH_TAG_OVR(n)                    (0x4000A6A0 + 4 * n)
 
-typedef enum
-{
-    ESPI_FLASH_SAF_REQ_READ  = 0,
-    ESPI_FLASH_SAF_REQ_WRITE = 1,
-    ESPI_FLASH_SAF_REQ_ERASE = 2,
-    ESPI_FLASH_SAF_REQ_RPMC_OP1  = 3,
-    ESPI_FLASH_SAF_REQ_RPMC_OP2  = 4,
+enum {
+	ESPI_FLASH_SAF_REQ_READ  = 0,
+	ESPI_FLASH_SAF_REQ_WRITE = 1,
+	ESPI_FLASH_SAF_REQ_ERASE = 2,
+	ESPI_FLASH_SAF_REQ_RPMC_OP1  = 3,
+	ESPI_FLASH_SAF_REQ_RPMC_OP2  = 4,
 	ESPI_FLASH_SAF_REQ_UNKNOWN = 5,
-    ESPI_FLASH_SAF_REQ_NUM = ESPI_FLASH_SAF_REQ_UNKNOWN,
-} ESPI_FLASH_SAF_REQ_T;
+};
 
 struct saf_handle_data {
-    uint8_t  saf_type;
-    uint8_t  saf_tag;
-    uint32_t address;
-    uint16_t length;
-    uint32_t src[16];
-    uint8_t *buf;
-    struct k_work work;
+	uint8_t  saf_type;
+	uint8_t  saf_tag;
+	uint32_t address;
+	uint16_t length;
+	uint32_t src[16];
+	uint8_t *buf;
+	struct k_work work;
 };
 
 struct saf_handle_data saf_data;
