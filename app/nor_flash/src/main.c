@@ -553,6 +553,72 @@ static int nor_flash_write(const struct device *flash_dev, off_t addr, size_t si
 	return 0;
 }
 
+static int nor_flash_write_only(const struct device *flash_dev, off_t addr, size_t size)
+{
+	int rc;
+	uint32_t i;
+	size_t temp_size, read_size, write_size;
+	off_t read_addr, write_addr;
+
+	/* Check if erase flash operation is successful or not? */
+	temp_size = size;
+	read_addr = addr;
+	while (temp_size) {
+		read_size = (temp_size >= TEMP_DATA_BUF_SIZE) ? TEMP_DATA_BUF_SIZE : temp_size;
+
+		rc = flash_read(flash_dev, read_addr, temp_data_buf, read_size);
+		if (rc != 0) {
+			LOG_ERR("flash_read() failed: %d", rc);
+			return -ENODEV;
+		}
+
+		for (i = 0; i < read_size; i++) {
+			if (temp_data_buf[i] != 0xFF) {
+				LOG_ERR("flash_erase() check failed. Addr: 0x%lx, Data: 0x%x",
+					(read_addr + i), temp_data_buf[i]);
+				return -ENODEV;
+			}
+		}
+
+		read_addr += read_size;
+		temp_size -= read_size;
+	}
+
+	/* Write flash */
+	temp_size = size;
+	write_addr = addr;
+	while (temp_size) {
+		write_size = (temp_size >= TEMP_DATA_BUF_SIZE) ? TEMP_DATA_BUF_SIZE : temp_size;
+
+		rc = flash_write(flash_dev, write_addr, temp_write_buf, write_size);
+		if (rc != 0) {
+			LOG_ERR("flash_write() failed: %d", rc);
+			return -ENODEV;
+		}
+
+		rc = flash_read(flash_dev, write_addr, temp_data_buf, write_size);
+		if (rc != 0) {
+			LOG_ERR("flash_read() failed: %d", rc);
+			return -ENODEV;
+		}
+
+		for (i = 0; i < write_size; i++) {
+			if (temp_data_buf[i] != temp_write_buf[i]) {
+				LOG_ERR("flash_write() check failed. A: 0x%lx, D: 0x%x, G: 0x%x",
+					(write_addr + i), temp_data_buf[i], temp_write_buf[i]);
+				return -ENODEV;
+			}
+		}
+
+		write_addr += write_size;
+		temp_size -= write_size;
+	}
+
+	shell_info(test_objs.shell, "Flash write only succeeded!");
+	return 0;
+}
+
+
 static int nor_flash_read_id_handler(const struct shell *shell, size_t argc, char **argv)
 {
 	shell_info(shell, "Read NOR FLASH ID");
@@ -639,6 +705,33 @@ static int nor_flash_write_handler(const struct shell *shell, size_t argc, char 
 	/* Start to test */
 	test_objs.shell = shell;
 	nor_flash_write(test_objs.cur_dev, addr, size);
+
+	return 0;
+}
+
+static int nor_flash_write_only_handler(const struct shell *shell, size_t argc, char **argv)
+{
+	char *eptr;
+	uint32_t addr;
+	uint32_t size;
+
+	/* Convert integer from string */
+	addr = strtoul(argv[1], &eptr, 0);
+	if (*eptr != '\0') {
+		shell_error(shell, "Invalid argument, '%s' is not an integer", argv[1]);
+		return -EINVAL;
+	}
+
+	size = strtoul(argv[2], &eptr, 0);
+	if (*eptr != '\0') {
+		shell_error(shell, "Invalid argument, '%s' is not an integer", argv[2]);
+		return -EINVAL;
+	}
+
+	shell_info(shell, "Write NOR FLASH");
+	/* Start to test */
+	test_objs.shell = shell;
+	nor_flash_write_only(test_objs.cur_dev, addr, size);
 
 	return 0;
 }
@@ -840,6 +933,8 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_nor_flash,
 		nor_flash_read_handler, 3, 0),
 	SHELL_CMD_ARG(write, NULL, "nor_flash write <addr> <size>: write flash",
 		nor_flash_write_handler, 3, 0),
+	SHELL_CMD_ARG(wr_only, NULL, "nor_flash wr_only <addr> <size>: write flash",
+		nor_flash_write_only_handler, 3, 0),
 #ifdef CONFIG_FLASH_EX_OP_ENABLED
 	SHELL_CMD_ARG(rdst, NULL, "nor_flash rdst: read flash status registers",
 		nor_flash_read_sts_reg_handler, 1, 0),
