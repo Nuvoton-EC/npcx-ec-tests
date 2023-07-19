@@ -25,6 +25,20 @@ LOG_MODULE_REGISTER(main);
 #define SMB_DEV_NODE DT_ALIAS(i2c_1)
 #elif DT_NODE_HAS_STATUS(DT_ALIAS(i2c_2), okay)
 #define SMB_DEV_NODE	DT_ALIAS(i2c_2)
+#elif DT_NODE_HAS_STATUS(DT_ALIAS(i2c_3), okay)
+#define SMB_DEV_NODE	DT_ALIAS(i2c_3)
+#elif DT_NODE_HAS_STATUS(DT_ALIAS(i2c_4), okay)
+#define SMB_DEV_NODE	DT_ALIAS(i2c_4)
+#elif DT_NODE_HAS_STATUS(DT_ALIAS(i2c_5), okay)
+#define SMB_DEV_NODE	DT_ALIAS(i2c_5)
+#elif DT_NODE_HAS_STATUS(DT_ALIAS(i2c_6), okay)
+#define SMB_DEV_NODE	DT_ALIAS(i2c_6)
+#elif DT_NODE_HAS_STATUS(DT_ALIAS(i2c_7), okay)
+#define SMB_DEV_NODE	DT_ALIAS(i2c_7)
+#elif DT_NODE_HAS_STATUS(DT_ALIAS(i2c_8), okay)
+#define SMB_DEV_NODE	DT_ALIAS(i2c_8)
+#elif DT_NODE_HAS_STATUS(DT_ALIAS(i2c_9), okay)
+#define SMB_DEV_NODE	DT_ALIAS(i2c_9)
 #else
 #error "Please set the correct SMB device"
 #endif
