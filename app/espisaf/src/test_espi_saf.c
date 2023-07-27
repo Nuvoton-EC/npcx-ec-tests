@@ -14,6 +14,8 @@
 #include <zephyr/logging/log_ctrl.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/shell/shell.h>
+#include <stdlib.h>
+#include <stdio.h>
 #if defined(CONFIG_ESPI_SAF)
 #include <../soc/arm/nuvoton_npcx/common/soc_espi_saf.h>
 #include <zephyr/drivers/espi_saf.h>
@@ -56,7 +58,7 @@ static const struct device *const espi_dev
 static const struct device *const saf_dev
 				 = DEVICE_DT_GET(DT_NODELABEL(espi_saf));
 static const struct device *const spi_dev
-				 = DEVICE_DT_GET(DT_ALIAS(spi_flash1));
+				 = DEVICE_DT_GET(DT_ALIAS(flash_dev));
 #endif
 
 static struct espi_callback espi_bus_cb;
@@ -295,15 +297,27 @@ void espi_saf_handler(const struct device *dev,
 		pckt->length = _4KB_;
 	}
 
+	if (CONFIG_ESPI_SAF_DIRECT_ACCESS)
+		LOG_INF("direct access");
+	else
+		LOG_INF("indirect access");
+
 	/* Get address from FLASHRXBUF1 */
-	pckt->address = LE32(*(data_ptr + 1));
+	if (CONFIG_ESPI_SAF_DIRECT_ACCESS)
+		pckt->address = LE32(*(data_ptr + 1));
+	else
+		pckt->address = LE32(*data_ptr);
 	pckt->buf = tx_buf_data;
 
 	/* Get written data if eSPI SAF write */
 	if ((pckt->saf_type & 0xF) == ESPI_FLASH_SAF_REQ_WRITE) {
 		roundsize = DIV_CEILING(pckt->length, sizeof(uint32_t));
-		for (i = 0; i < roundsize; i++)
-			pckt->src[i] = *(data_ptr + (i + 2));
+		for (i = 0; i < roundsize; i++) {
+			if (CONFIG_ESPI_SAF_DIRECT_ACCESS)
+				pckt->src[i] = *(data_ptr + (i + 2));
+			else
+				pckt->src[i] = *data_ptr;
+		}
 	}
 }
 
@@ -546,18 +560,35 @@ void test_espi_saf_init(void)
 }
 
 #ifdef CONFIG_ESPI_FLASH_CHANNEL
-int cmd_flash_erase(void)
+int cmd_flash_erase(const struct shell *shell, size_t argc, char **argv)
 {
-	flash_erase(spi_dev, 0x0, _128KB_);
+	char *eptr;
+	/* Convert integer from string */
+	uint32_t addr = strtoul(argv[1], &eptr, 0);
+
+	if (*eptr != '\0') {
+		shell_error(shell, "Invalid argument, '%s' is not an integer", argv[1]);
+		return -EINVAL;
+	}
+
+	flash_erase(spi_dev, addr, _128KB_);
 	return 0;
 }
 
-int cmd_flash_write(void)
+int cmd_flash_write(const struct shell *shell, size_t argc, char **argv)
 {
 	uint8_t data_buf[SPI_NAND_PAGE_SIZE];
-	uint32_t data_sz_in = 0x1000U;
+	uint32_t data_sz_in = 0x10000U;
 	uint32_t addr_in = 0x0;
 	uint32_t wr_size;
+	char *eptr;
+
+	addr_in = strtoul(argv[1], &eptr, 0);
+
+	if (*eptr != '\0') {
+		shell_error(shell, "Invalid argument, '%s' is not an integer", argv[1]);
+		return -EINVAL;
+	}
 
 	while (data_sz_in > 0) {
 		if (data_sz_in >= sizeof(data_buf))
@@ -583,9 +614,11 @@ int cmd_flash_protection(void)
 }
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_espi,
-	SHELL_CMD(flash_erase, NULL, "erase NAND flash", cmd_flash_erase),
-	SHELL_CMD(write_gold, NULL, "write NAND flash", cmd_flash_write),
-	SHELL_CMD(set_pr, NULL, "set protection region", cmd_flash_protection),
+	SHELL_CMD_ARG(flash_erase, NULL, "espi_saf flash_erase <addr>",
+		cmd_flash_erase, 2, 0),
+	SHELL_CMD_ARG(write_gold, NULL, "espi_saf write_gold <addr>",
+		cmd_flash_write, 2, 0),
+	SHELL_CMD(set_pr, NULL, "espi_saf set_pr", cmd_flash_protection),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 );
 

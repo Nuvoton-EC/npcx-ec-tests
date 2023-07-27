@@ -11,8 +11,7 @@
 
 	aliases {
 		/* For samples/drivers/spi_flash */
-		spi-flash0 = &int_flash;
-		spi-flash1 = &shd_flash0;
+		flash-dev = &shd_flash0;
 	};
 };
 
