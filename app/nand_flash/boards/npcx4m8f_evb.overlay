@@ -11,8 +11,7 @@
 
 	aliases {
 		/* For samples/drivers/spi_flash */
-		spi-flash0 = &int_flash;
-		spi-flash1 = &shd_flash0;
+		spi-flash0 = &shd_flash0;
 	};
 };
 
@@ -20,15 +19,14 @@
 	status = "okay";
 	en-direct-access-2dev;
 
-	shd_flash0: w25n01kv@0 {
+	shd_flash0: nand_w25n01kv@0 {
 		compatible ="nuvoton,npcx-fiu-nand";
 		size = <0x40000000>; /* 1G bits = 128 Mbytes */
 		max-timeout = <86784>;
 		reg = <0>;
-
 		status = "okay";
 
-		/* quad spi bus configuration of nor flash device */
+		/* Config for npcx4 SVB board - CS0 */
 		qspi-flags = <NPCX_QSPI_SW_CS0>;
 		mapped-addr = <0x68000000>;
 		pinctrl-0 = <&fiu_ext_io0_io1_clk_cs_gpa4_96_a2_a0
@@ -36,11 +34,23 @@
 			     &ext_flash_tris_off>;
 		pinctrl-names = "default";
 
-		/* Read,Write mode */
-		read-mode  = "QUAD_OUTPUT";
+		/* Config for npcx4 PIGGY board - CS1 */
+		/* qspi-flags = <(NPCX_QSPI_SW_CS0 | NPCX_QSPI_SEC_FLASH_SL)>;
+		mapped-addr = <0x6C000000>;
+		pinctrl-0 = <&fiu_ext_io0_io1_clk_cs_gpa4_96_a2_a0
+			     &fiu_ext_quad_io2_io3_gp93_a7
+			     &ext_flash_tris_off
+			     &ext_flash_cs1_sl>;
+		pinctrl-names = "default"; */
+
+		/* UMA read, write mode selection */
+		read-mode  = "QUAD_IO";
 		write-mode = "QUAD_OUTPUT";
 
-		/* nand flash information */
+		/* Force read mode as quad_io direct access */
+		en-direct-read-quad;
+
+		/* NAND flash information */
 		page-size = <0x800>;    /* 1 page = 2048 bytes*/
 		page-num = <0x10000>;
 		block-size = <0x20000>; /* 1 block = 64 pages = 128K */
