@@ -14,6 +14,7 @@
 #include <zephyr/logging/log_ctrl.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/shell/shell.h>
+#include <zephyr/shell/shell_uart.h>
 #include <stdlib.h>
 #include <stdio.h>
 #if defined(CONFIG_ESPI_SAF)
@@ -69,6 +70,7 @@ static struct espi_callback p80_cb;
 static struct espi_callback espi_saf_cb;
 #endif
 static uint8_t espi_rst_sts;
+static uint8_t nand_data_buf[SPI_NAND_PAGE_SIZE];
 
 #ifdef CONFIG_ESPI_FLASH_CHANNEL
 #if defined(CONFIG_ESPI_SAF)
@@ -296,11 +298,6 @@ void espi_saf_handler(const struct device *dev,
 		(pckt->saf_type & 0xF) != ESPI_FLASH_SAF_REQ_ERASE) {
 		pckt->length = _4KB_;
 	}
-
-	if (CONFIG_ESPI_SAF_DIRECT_ACCESS)
-		LOG_INF("direct access");
-	else
-		LOG_INF("indirect access");
 
 	/* Get address from FLASHRXBUF1 */
 	if (CONFIG_ESPI_SAF_DIRECT_ACCESS)
@@ -559,9 +556,9 @@ void test_espi_saf_init(void)
 	k_thread_start(espi_saf_id);
 }
 
-#ifdef CONFIG_ESPI_FLASH_CHANNEL
-int cmd_flash_erase(const struct shell *shell, size_t argc, char **argv)
+static int flash_erase_cmd(const struct shell *shell, size_t argc, char **argv)
 {
+	int ret;
 	char *eptr;
 	/* Convert integer from string */
 	uint32_t addr = strtoul(argv[1], &eptr, 0);
@@ -571,39 +568,59 @@ int cmd_flash_erase(const struct shell *shell, size_t argc, char **argv)
 		return -EINVAL;
 	}
 
-	flash_erase(spi_dev, addr, _128KB_);
+	ret = flash_erase(spi_dev, addr, _128KB_);
+	if (ret != 0) {
+		LOG_ERR("flash erase failed: %d", ret);
+		return -ENODEV;
+	}
+
+	LOG_INF("Flash erase succeeded!");
+	LOG_INF("[GO]");
 	return 0;
 }
 
-int cmd_flash_write(const struct shell *shell, size_t argc, char **argv)
+static int flash_write_cmd(const struct shell *shell, size_t argc, char **argv)
 {
-	uint8_t data_buf[SPI_NAND_PAGE_SIZE];
 	uint32_t data_sz_in = 0x10000U;
-	uint32_t addr_in = 0x0;
 	uint32_t wr_size;
 	char *eptr;
-
-	addr_in = strtoul(argv[1], &eptr, 0);
+	int i, ret;
+	uint32_t addr_in = strtoul(argv[1], &eptr, 0);
 
 	if (*eptr != '\0') {
 		shell_error(shell, "Invalid argument, '%s' is not an integer", argv[1]);
 		return -EINVAL;
 	}
 
+	/* check address and size sector (512 byte) alignment */
+	if ((addr_in & 0x1ff) != 0 || (data_sz_in & 0x1ff) != 0) {
+		LOG_ERR("flash addr or size not 512 byte alignment");
+		return -ENODEV;
+	}
+
 	while (data_sz_in > 0) {
-		if (data_sz_in >= sizeof(data_buf))
-			wr_size = sizeof(data_buf);
+		if (data_sz_in >= sizeof(nand_data_buf))
+			wr_size = sizeof(nand_data_buf);
 		else
 			wr_size = data_sz_in;
 
-		memset(data_buf, 0, sizeof(data_buf));
-		for (int i = 0 ; i < wr_size ; i++)
-			data_buf[i]  = CAL_DATA_FROM_ADDR((addr_in + i));
+		(void)memset(nand_data_buf, 0, sizeof(nand_data_buf));
 
-		flash_write(spi_dev, addr_in, data_buf, wr_size);
+		for (i = 0 ; i < wr_size ; i++)
+			nand_data_buf[i]  = CAL_DATA_FROM_ADDR((addr_in + i));
+
+		ret = flash_write(spi_dev, addr_in, nand_data_buf, wr_size);
+		if (ret != 0) {
+			LOG_ERR("flash erase failed: %d", ret);
+			return -ENODEV;
+		}
+
 		data_sz_in -= wr_size;
 		addr_in += wr_size;
 	}
+
+	LOG_INF("Flash write succeeded!");
+	LOG_INF("[GO]");
 	return 0;
 }
 
@@ -615,12 +632,11 @@ int cmd_flash_protection(void)
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_espi,
 	SHELL_CMD_ARG(flash_erase, NULL, "espi_saf flash_erase <addr>",
-		cmd_flash_erase, 2, 0),
-	SHELL_CMD_ARG(write_gold, NULL, "espi_saf write_gold <addr>",
-		cmd_flash_write, 2, 0),
+		flash_erase_cmd, 2, 0),
+	SHELL_CMD_ARG(flash_write, NULL, "espi_saf flash_write <addr>",
+		flash_write_cmd, 2, 0),
 	SHELL_CMD(set_pr, NULL, "espi_saf set_pr", cmd_flash_protection),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 );
 
-SHELL_CMD_REGISTER(espi_saf, &sub_espi, "eSPI Commands", NULL);
-#endif /* CONFIG_ESPI_FLASH_CHANNEL */
+SHELL_CMD_REGISTER(espi_saf, &sub_espi, "Test Commands", NULL);
