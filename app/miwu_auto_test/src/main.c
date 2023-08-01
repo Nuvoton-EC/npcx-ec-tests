@@ -30,7 +30,7 @@ struct test_pin_t {
 	uint8_t bit;
 };
 
-
+#if defined(CONFIG_SOC_SERIES_NPCK3)
 enum {
 	GPIO_GROUP_0 = 0,
 	GPIO_GROUP_1,
@@ -54,8 +54,30 @@ enum {
 	GPIO_GROUP_STB1,
 	GPIO_GROUP_COUNT,
 } GPIO_GROUP_T;
+#elif defined(CONFIG_SOC_SERIES_NPCX4)
+enum {
+	GPIO_GROUP_0 = 0,
+	GPIO_GROUP_1,
+	GPIO_GROUP_2,
+	GPIO_GROUP_3,
+	GPIO_GROUP_4,
+	GPIO_GROUP_5,
+	GPIO_GROUP_6,
+	GPIO_GROUP_7,
+	GPIO_GROUP_8,
+	GPIO_GROUP_9,
+	GPIO_GROUP_A,
+	GPIO_GROUP_B,
+	GPIO_GROUP_C,
+	GPIO_GROUP_D,
+	GPIO_GROUP_E,
+	GPIO_GROUP_F,
+	GPIO_GROUP_COUNT,
+} GPIO_GROUP_T;
+#endif
 
 /* MIWU Verification Table */
+#if defined(CONFIG_SOC_SERIES_NPCK3)
 #define DFT_MIWU_IO_TABLE { \
 	{ GPIO_GROUP_0, 1 }, \
 	{ GPIO_GROUP_0, 2 }, \
@@ -161,16 +183,122 @@ enum {
 	{ GPIO_GROUP_STB1, 5 }, \
 	{ GPIO_GROUP_STB1, 6 }, \
 }
+#elif defined(CONFIG_SOC_SERIES_NPCX4)
+#define DFT_MIWU_IO_TABLE { \
+	{ GPIO_GROUP_0, 0 }, \
+	{ GPIO_GROUP_0, 1 }, \
+	{ GPIO_GROUP_0, 2 }, \
+	{ GPIO_GROUP_0, 3 }, \
+	{ GPIO_GROUP_0, 4 }, \
+	{ GPIO_GROUP_0, 5 }, \
+	{ GPIO_GROUP_0, 6 }, \
+	{ GPIO_GROUP_0, 7 }, \
+	{ GPIO_GROUP_1, 2 }, \
+	{ GPIO_GROUP_1, 3 }, \
+	{ GPIO_GROUP_1, 4 }, \
+	{ GPIO_GROUP_1, 5 }, \
+	{ GPIO_GROUP_1, 6 }, \
+	{ GPIO_GROUP_1, 7 }, \
+	{ GPIO_GROUP_2, 0 }, \
+	{ GPIO_GROUP_2, 1 }, \
+	{ GPIO_GROUP_2, 2 }, \
+	{ GPIO_GROUP_2, 3 }, \
+	{ GPIO_GROUP_2, 4 }, \
+	{ GPIO_GROUP_2, 5 }, \
+	{ GPIO_GROUP_2, 6 }, \
+	{ GPIO_GROUP_2, 7 }, \
+	{ GPIO_GROUP_3, 0 }, \
+	{ GPIO_GROUP_3, 1 }, \
+	{ GPIO_GROUP_3, 3 }, \
+	{ GPIO_GROUP_3, 4 }, \
+	{ GPIO_GROUP_3, 6 }, \
+	{ GPIO_GROUP_3, 7 }, \
+	{ GPIO_GROUP_4, 0 }, \
+	{ GPIO_GROUP_4, 1 }, \
+	{ GPIO_GROUP_4, 2 }, \
+	{ GPIO_GROUP_4, 3 }, \
+	{ GPIO_GROUP_4, 4 }, \
+	{ GPIO_GROUP_4, 5 }, \
+	{ GPIO_GROUP_4, 6 }, \
+	{ GPIO_GROUP_4, 7 }, \
+	{ GPIO_GROUP_5, 0 }, \
+	{ GPIO_GROUP_5, 1 }, \
+	{ GPIO_GROUP_5, 2 }, \
+	{ GPIO_GROUP_5, 3 }, \
+	{ GPIO_GROUP_5, 4 }, \
+	{ GPIO_GROUP_5, 5 }, \
+	{ GPIO_GROUP_5, 6 }, \
+	{ GPIO_GROUP_5, 7 }, \
+	{ GPIO_GROUP_6, 0 }, \
+	{ GPIO_GROUP_6, 1 }, \
+	{ GPIO_GROUP_6, 2 }, \
+	{ GPIO_GROUP_6, 3 }, \
+	{ GPIO_GROUP_6, 6 }, \
+	{ GPIO_GROUP_6, 7 }, \
+	{ GPIO_GROUP_7, 0 }, \
+	{ GPIO_GROUP_7, 2 }, \
+	{ GPIO_GROUP_7, 3 }, \
+	{ GPIO_GROUP_7, 4 }, \
+	{ GPIO_GROUP_7, 5 }, \
+	{ GPIO_GROUP_7, 6 }, \
+	{ GPIO_GROUP_8, 0 }, \
+	{ GPIO_GROUP_8, 1 }, \
+	{ GPIO_GROUP_8, 2 }, \
+	{ GPIO_GROUP_8, 3 }, \
+	{ GPIO_GROUP_8, 7 }, \
+	{ GPIO_GROUP_9, 0 }, \
+	{ GPIO_GROUP_9, 1 }, \
+	{ GPIO_GROUP_9, 2 }, \
+	{ GPIO_GROUP_B, 1 }, \
+	{ GPIO_GROUP_B, 2 }, \
+	{ GPIO_GROUP_B, 3 }, \
+	{ GPIO_GROUP_B, 4 }, \
+	{ GPIO_GROUP_B, 5 }, \
+	{ GPIO_GROUP_B, 6 }, \
+	{ GPIO_GROUP_B, 7 }, \
+	{ GPIO_GROUP_C, 0 }, \
+	{ GPIO_GROUP_C, 1 }, \
+	{ GPIO_GROUP_C, 2 }, \
+	{ GPIO_GROUP_C, 3 }, \
+	{ GPIO_GROUP_C, 4 }, \
+	{ GPIO_GROUP_C, 5 }, \
+	{ GPIO_GROUP_C, 6 }, \
+	{ GPIO_GROUP_C, 7 }, \
+	{ GPIO_GROUP_D, 0 }, \
+	{ GPIO_GROUP_D, 1 }, \
+	{ GPIO_GROUP_D, 2 }, \
+	{ GPIO_GROUP_D, 3 }, \
+	{ GPIO_GROUP_D, 4 }, \
+	{ GPIO_GROUP_D, 6 }, \
+	{ GPIO_GROUP_E, 0 }, \
+	{ GPIO_GROUP_E, 1 }, \
+	{ GPIO_GROUP_E, 2 }, \
+	{ GPIO_GROUP_E, 3 }, \
+	{ GPIO_GROUP_E, 4 }, \
+	{ GPIO_GROUP_E, 7 }, \
+	{ GPIO_GROUP_F, 0 }, \
+	{ GPIO_GROUP_F, 1 }, \
+	{ GPIO_GROUP_F, 2 }, \
+	{ GPIO_GROUP_F, 3 }, \
+	{ GPIO_GROUP_F, 4 }, \
+	{ GPIO_GROUP_F, 5 }, \
+}
+#endif
 
-
+#define START_VALUE 0
 static struct test_pin_t  miwu_io_pins[] = DFT_MIWU_IO_TABLE;
 static const uint16_t sz_miwu_io_inputs   = ARRAY_SIZE(miwu_io_pins);
-
+#if defined(CONFIG_SOC_SERIES_NPCK3)
 const char io_name[GPIO_GROUP_COUNT][5] = {
 	"0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
 	"A", "B", "C", "D", "E", "F", "G", "H",
 	"STB0", "STB1"
 };
+#elif defined(CONFIG_SOC_SERIES_NPCX4)
+const char io_name[GPIO_GROUP_COUNT][5] = {
+	"0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+	"A", "B", "C", "D", "E", "F"};
+#endif
 
 uint8_t miwu_results[MIWU_RESULT_COUNT-1][GPIO_GROUP_COUNT][8];
 
@@ -247,6 +375,7 @@ uint8_t parser_gpio_group(const char *name)
 		return GPIO_GROUP_E;
 	else if (!strcmp(name, "gpiof"))
 		return GPIO_GROUP_F;
+#if defined(CONFIG_SOC_SERIES_NPCK3)
 	else if (!strcmp(name, "gpiog"))
 		return GPIO_GROUP_G;
 	else if (!strcmp(name, "gpioh"))
@@ -255,6 +384,7 @@ uint8_t parser_gpio_group(const char *name)
 		return GPIO_GROUP_STB0;
 	else if (!strcmp(name, "gpiostb1"))
 		return GPIO_GROUP_STB1;
+#endif
 	else
 		return 0xFF;
 }
@@ -277,9 +407,16 @@ static void gpio_isr(const struct device *port, struct gpio_callback *cb,
 	}
 	t_group = parser_gpio_group(port->name);
 	miwu_results[miwu_type][t_group][pin_number-1] = MIWU_PASS;
+
+	#if defined(CONFIG_SOC_SERIES_NPCK3)
 	if (t_group == GPIO_GROUP_STB1 && (pin_number-1) == 6) {
 		k_event_post(&miwu_test_event, evt);
 	}
+	#elif defined(CONFIG_SOC_SERIES_NPCX4)
+	if (t_group == GPIO_GROUP_F && (pin_number-1) == 5) {
+		k_event_post(&miwu_test_event, evt);
+	}
+	#endif
 }
 
 static void auto_miwu_thread_entry(void)
@@ -287,7 +424,7 @@ static void auto_miwu_thread_entry(void)
 	uint32_t events;
 
 	k_event_init(&miwu_test_event);
-	for (io = 0; io < sz_miwu_io_inputs; io++) {
+	for (io = START_VALUE; io < sz_miwu_io_inputs; io++) {
 		t_dev = gpio_objs[miwu_io_pins[io].port].dev;
 		t_bit = miwu_io_pins[io].bit;
 		t_group = parser_gpio_group(t_dev->name);
@@ -304,7 +441,7 @@ static void auto_miwu_thread_entry(void)
 		switch (events) {
 		case MIWU_TEST_AUTO_FALLING:
 			miwu_type = RISING_FAIL;
-			for (io = 0; io < sz_miwu_io_inputs; io++) {
+			for (io = START_VALUE; io < sz_miwu_io_inputs; io++) {
 				t_dev = gpio_objs[miwu_io_pins[io].port].dev;
 				t_bit = miwu_io_pins[io].bit;
 				t_group = parser_gpio_group(t_dev->name);
@@ -318,7 +455,7 @@ static void auto_miwu_thread_entry(void)
 		break;
 		case MIWU_TEST_AUTO_RISING:
 			miwu_type = ANY_FALLING_FAIL;
-			for (io = 0; io < sz_miwu_io_inputs; io++) {
+			for (io = START_VALUE; io < sz_miwu_io_inputs; io++) {
 				t_dev = gpio_objs[miwu_io_pins[io].port].dev;
 				t_bit = miwu_io_pins[io].bit;
 				t_group = parser_gpio_group(t_dev->name);
@@ -332,7 +469,7 @@ static void auto_miwu_thread_entry(void)
 		break;
 		case MIWU_TEST_AUTO_ANY_FALLING:
 			miwu_type = ANY_RISING_FAIL;
-			for (io = 0; io < sz_miwu_io_inputs; io++) {
+			for (io = START_VALUE; io < sz_miwu_io_inputs; io++) {
 				t_dev = gpio_objs[miwu_io_pins[io].port].dev;
 				t_bit = miwu_io_pins[io].bit;
 				t_group = parser_gpio_group(t_dev->name);
@@ -346,7 +483,7 @@ static void auto_miwu_thread_entry(void)
 		break;
 		case MIWU_TEST_AUTO_ANY_RISING:
 			miwu_type = LOW_LEVEL_FAIL;
-			for (io = 0; io < sz_miwu_io_inputs; io++) {
+			for (io = START_VALUE; io < sz_miwu_io_inputs; io++) {
 				t_dev = gpio_objs[miwu_io_pins[io].port].dev;
 				t_bit = miwu_io_pins[io].bit;
 				t_group = parser_gpio_group(t_dev->name);
@@ -360,7 +497,7 @@ static void auto_miwu_thread_entry(void)
 		break;
 		case MIWU_TEST_AUTO_LOW_LEVEL:
 			miwu_type = HIGH_LEVEL_FAIL;
-			for (io = 0; io < sz_miwu_io_inputs; io++) {
+			for (io = START_VALUE; io < sz_miwu_io_inputs; io++) {
 				t_dev = gpio_objs[miwu_io_pins[io].port].dev;
 				t_bit = miwu_io_pins[io].bit;
 				t_group = parser_gpio_group(t_dev->name);
@@ -373,7 +510,7 @@ static void auto_miwu_thread_entry(void)
 			cmd_type = MIWU_TEST_AUTO_HIGH_LEVEL;
 		break;
 		case MIWU_TEST_AUTO_HIGH_LEVEL:
-			for (io = 0; io < sz_miwu_io_inputs; io++) {
+			for (io = START_VALUE; io < sz_miwu_io_inputs; io++) {
 				t_dev = gpio_objs[miwu_io_pins[io].port].dev;
 				t_bit = miwu_io_pins[io].bit;
 				t_group = parser_gpio_group(t_dev->name);
@@ -383,9 +520,14 @@ static void auto_miwu_thread_entry(void)
 				else
 					gpio_pin_set_raw(t_dev, t_bit, 0);
 			}
-			*(volatile uint8_t*)(0x400C3011) = 0x06;
+			#if defined(CONFIG_SOC_SERIES_NPCK3)
+				*(volatile uint8_t*)(0x400C3011) = 0x06;
+			#elif defined(CONFIG_SOC_SERIES_NPCX4)
+				/*Enable UART1_2*/
+				*(volatile uint8_t*)(0x400C3022) = 0x0C;
+			#endif
 			LOG_INF("MIWU Report");
-			for (io = 0; io < sz_miwu_io_inputs; io++) {
+			for (io = START_VALUE; io < sz_miwu_io_inputs; io++) {
 				t_dev = gpio_objs[miwu_io_pins[io].port].dev;
 				t_bit = miwu_io_pins[io].bit;
 				t_group = parser_gpio_group(t_dev->name);
@@ -399,7 +541,7 @@ static void auto_miwu_thread_entry(void)
 				k_sleep(K_MSEC(50));
 			}
 
-			for (io = 0; io < sz_miwu_io_inputs; io++) {
+			for (io = START_VALUE; io < sz_miwu_io_inputs; io++) {
 				t_dev = gpio_objs[miwu_io_pins[io].port].dev;
 				t_bit = miwu_io_pins[io].bit;
 				t_group = parser_gpio_group(t_dev->name);
@@ -413,7 +555,7 @@ static void auto_miwu_thread_entry(void)
 				k_sleep(K_MSEC(50));
 			}
 
-			for (io = 0; io < sz_miwu_io_inputs; io++) {
+			for (io = START_VALUE; io < sz_miwu_io_inputs; io++) {
 				t_dev = gpio_objs[miwu_io_pins[io].port].dev;
 				t_bit = miwu_io_pins[io].bit;
 				t_group = parser_gpio_group(t_dev->name);
@@ -427,7 +569,7 @@ static void auto_miwu_thread_entry(void)
 				k_sleep(K_MSEC(50));
 			}
 
-			for (io = 0; io < sz_miwu_io_inputs; io++) {
+			for (io = START_VALUE; io < sz_miwu_io_inputs; io++) {
 				t_dev = gpio_objs[miwu_io_pins[io].port].dev;
 				t_bit = miwu_io_pins[io].bit;
 				t_group = parser_gpio_group(t_dev->name);
@@ -441,7 +583,7 @@ static void auto_miwu_thread_entry(void)
 				k_sleep(K_MSEC(50));
 			}
 
-			for (io = 0; io < sz_miwu_io_inputs; io++) {
+			for (io = START_VALUE; io < sz_miwu_io_inputs; io++) {
 				t_dev = gpio_objs[miwu_io_pins[io].port].dev;
 				t_bit = miwu_io_pins[io].bit;
 				t_group = parser_gpio_group(t_dev->name);
@@ -455,7 +597,7 @@ static void auto_miwu_thread_entry(void)
 				k_sleep(K_MSEC(50));
 			}
 
-			for (io = 0; io < sz_miwu_io_inputs; io++) {
+			for (io = START_VALUE; io < sz_miwu_io_inputs; io++) {
 				t_dev = gpio_objs[miwu_io_pins[io].port].dev;
 				t_bit = miwu_io_pins[io].bit;
 				t_group = parser_gpio_group(t_dev->name);
@@ -483,22 +625,26 @@ void main(void)
 {
 	cmd_type = MIWU_TEST_AUTO_FALLING;
 	LOG_INF("--- CI20 Zephyr MIWU Driver Validation ---");
-	for (int io = 0; io < sz_miwu_io_inputs; io++) {
+	for (int io = START_VALUE; io < sz_miwu_io_inputs; io++) {
 		t_dev = gpio_objs[miwu_io_pins[io].port].dev;
 		t_bit = miwu_io_pins[io].bit;
 
 		default_raw_data[io] = gpio_pin_get_raw(t_dev, t_bit);
 	}
 	k_sleep(K_MSEC(100));
-#if defined(CONFIG_SOC_SERIES_NPCK3)
+#if defined(CONFIG_SOC_SERIES_NPCK3)/*ToDo pinctl*/
 	/*Disable EPUR2 and UART*/
 	struct glue_reg *inst_glue = (struct glue_reg *)(NPCX_GLUE_REG_ADDR);
 
 	inst_glue->EPURST_CTL &= ~BIT(NPCX_EPURST_CTL_EPUR2_EN);
 	*(volatile uint8_t*)(0x400C3011) = 0x00;
 #elif defined(CONFIG_SOC_SERIES_NPCX4)/*ToDo pinctl*/
+	/*Select VHIF 3.3V*/
 	*(volatile uint8_t*)(0x400C3000) = 0xD4;
+	/*No LPC or eSPI interface select*/
 	*(volatile uint8_t*)(0x400C3011) = 0x80;
+	/*Disable UART1_2*/
+	*(volatile uint8_t*)(0x400C3022) = 0x00;
 #endif
 	/* Zephyr driver validation init */
 	auto_miwu_thread_entry();
