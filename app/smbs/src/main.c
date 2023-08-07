@@ -16,296 +16,200 @@
 #include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/i2c/target/eeprom.h>
 
-#include <zephyr/ztest.h>
+#include <zephyr/shell/shell.h>
+#include <zephyr/shell/shell_uart.h>
+#include <stdlib.h>
 
+#define LOG_LEVEL LOG_LEVEL_INF
+#include <zephyr/logging/log.h>
+LOG_MODULE_REGISTER(main);
+
+#if DT_NODE_HAS_STATUS(DT_ALIAS(i2c_0), okay)
 #define NODE_EP0 DT_NODELABEL(eeprom0)
-#define NODE_EP1 DT_NODELABEL(eeprom1)
+#elif DT_NODE_HAS_STATUS(DT_ALIAS(i2c_1), okay)
+#define NODE_EP0 DT_NODELABEL(eeprom1)
+#elif DT_NODE_HAS_STATUS(DT_ALIAS(i2c_2), okay)
+#define NODE_EP0 DT_NODELABEL(eeprom2)
+#elif DT_NODE_HAS_STATUS(DT_ALIAS(i2c_3), okay)
+#define NODE_EP0 DT_NODELABEL(eeprom3)
+#elif DT_NODE_HAS_STATUS(DT_ALIAS(i2c_4), okay)
+#define NODE_EP0 DT_NODELABEL(eeprom4)
+#elif DT_NODE_HAS_STATUS(DT_ALIAS(i2c_5), okay)
+#define NODE_EP0 DT_NODELABEL(eeprom5)
+#elif DT_NODE_HAS_STATUS(DT_ALIAS(i2c_6), okay)
+#define NODE_EP0 DT_NODELABEL(eeprom6)
+#elif DT_NODE_HAS_STATUS(DT_ALIAS(i2c_7), okay)
+#define NODE_EP0 DT_NODELABEL(eeprom7)
+#elif DT_NODE_HAS_STATUS(DT_ALIAS(i2c_8), okay)
+#define NODE_EP0 DT_NODELABEL(eeprom8)
+#elif DT_NODE_HAS_STATUS(DT_ALIAS(i2c_9), okay)
+#define NODE_EP0 DT_NODELABEL(eeprom9)
+#elif DT_NODE_HAS_STATUS(DT_ALIAS(i2c_10), okay)
+#define NODE_EP0 DT_NODELABEL(eeprom10)
+#elif DT_NODE_HAS_STATUS(DT_ALIAS(i2c_11), okay)
+#define NODE_EP0 DT_NODELABEL(eeprom11)
+#else
+#error "Please set the correct SMB device"
+#endif
 
 #define TEST_DATA_SIZE	20
 static const uint8_t eeprom_0_data[TEST_DATA_SIZE] = "0123456789abcdefghij";
-static const uint8_t eeprom_1_data[TEST_DATA_SIZE] = "jihgfedcba9876543210";
-static uint8_t i2c_buffer[TEST_DATA_SIZE];
 
-/*
- * We need 5x(buffer size) + 1 to print a comma-separated list of each
- * byte in hex, plus a null.
- */
-uint8_t buffer_print_eeprom[TEST_DATA_SIZE * 5 + 1];
-uint8_t buffer_print_i2c[TEST_DATA_SIZE * 5 + 1];
+/* Commands used for validation */
+enum {
+	SMB_CMD0,
+	SMB_CMD1,
+	SMB_CMD_COUNT,
+};
 
-static void to_display_format(const uint8_t *src, size_t size, char *dst)
+/* Objects used for validation */
+static struct {
+	int cmd;
+	struct k_sem sem_sync;
+
+	/* command args */
+	struct {
+		uint32_t val;
+	} cmd1_args;
+
+	struct {
+		uint32_t val;
+		uint32_t status;
+	} cmd2_args;
+
+} test_objs;
+
+
+static void smb_thread_entry(void)
 {
-	size_t i;
 
-	for (i = 0; i < size; i++) {
-		sprintf(dst + 5 * i, "0x%02x,", src[i]);
-	}
-}
-
-static int run_full_read(const struct device *i2c, uint8_t addr,
-			 const uint8_t *comp_buffer)
-{
-	int ret;
-
-	TC_PRINT("Testing full read: Master: %s, address: 0x%x\n",
-		 i2c->name, addr);
-
-	/* Read EEPROM from I2C Master requests, then compare */
-	ret = i2c_burst_read(i2c, addr, 0, i2c_buffer, TEST_DATA_SIZE);
-	zassert_equal(ret, 0, "Failed to read EEPROM");
-
-	if (memcmp(i2c_buffer, comp_buffer, TEST_DATA_SIZE)) {
-		to_display_format(i2c_buffer, TEST_DATA_SIZE,
-				  buffer_print_i2c);
-		to_display_format(comp_buffer, TEST_DATA_SIZE,
-				  buffer_print_eeprom);
-		TC_PRINT("Error: Buffer contents are different: %s\n",
-			 buffer_print_i2c);
-		TC_PRINT("                         vs expected: %s\n",
-			 buffer_print_eeprom);
-		return -EIO;
-	}
-
-	return 0;
-}
-
-static int run_partial_read(const struct device *i2c, uint8_t addr,
-			    const uint8_t *comp_buffer, unsigned int offset)
-{
-	int ret;
-
-	TC_PRINT("Testing partial read. Master: %s, address: 0x%x, off=%d\n",
-		 i2c->name, addr, offset);
-
-	ret = i2c_burst_read(i2c, addr,
-			     offset, i2c_buffer, TEST_DATA_SIZE-offset);
-	zassert_equal(ret, 0, "Failed to read EEPROM");
-
-	if (memcmp(i2c_buffer, &comp_buffer[offset], TEST_DATA_SIZE-offset)) {
-		to_display_format(i2c_buffer, TEST_DATA_SIZE-offset,
-				  buffer_print_i2c);
-		to_display_format(&comp_buffer[offset], TEST_DATA_SIZE-offset,
-				  buffer_print_eeprom);
-		TC_PRINT("Error: Buffer contents are different: %s\n",
-			 buffer_print_i2c);
-		TC_PRINT("                         vs expected: %s\n",
-			 buffer_print_eeprom);
-		return -EIO;
-	}
-
-	return 0;
-}
-
-static int run_program_read(const struct device *i2c, uint8_t addr,
-			    unsigned int offset)
-{
-	int ret, i;
-
-	TC_PRINT("Testing program. Master: %s, address: 0x%x, off=%d\n",
-		i2c->name, addr, offset);
-
-	for (i = 0 ; i < TEST_DATA_SIZE-offset ; ++i) {
-		i2c_buffer[i] = i;
-	}
-
-	ret = i2c_burst_write(i2c, addr,
-			      offset, i2c_buffer, TEST_DATA_SIZE-offset);
-	zassert_equal(ret, 0, "Failed to write EEPROM");
-
-	(void)memset(i2c_buffer, 0xFF, TEST_DATA_SIZE);
-
-	/* Read back EEPROM from I2C Master requests, then compare */
-	ret = i2c_burst_read(i2c, addr,
-			     offset, i2c_buffer, TEST_DATA_SIZE-offset);
-	zassert_equal(ret, 0, "Failed to read EEPROM");
-
-	for (i = 0 ; i < TEST_DATA_SIZE-offset ; ++i) {
-		if (i2c_buffer[i] != i) {
-			to_display_format(i2c_buffer, TEST_DATA_SIZE-offset,
-					  buffer_print_i2c);
-			TC_PRINT("Error: Unexpected buffer content: %s\n",
-				 buffer_print_i2c);
-			return -EIO;
-		}
-	}
-
-	return 0;
-}
-
-ZTEST(i2c_eeprom_target, test_eeprom_target)
-{
 	const struct device *const eeprom_0 = DEVICE_DT_GET(NODE_EP0);
 	const struct device *const i2c_0 = DEVICE_DT_GET(DT_BUS(NODE_EP0));
 	int addr_0 = DT_REG_ADDR(NODE_EP0);
-	const struct device *const eeprom_1 = DEVICE_DT_GET(NODE_EP1);
-	const struct device *const i2c_1 = DEVICE_DT_GET(DT_BUS(NODE_EP1));
-	int addr_1 = DT_REG_ADDR(NODE_EP1);
-	int ret, offset;
+	int ret;
 
-	zassert_not_null(i2c_0, "EEPROM 0 - I2C bus not found");
-	zassert_not_null(eeprom_0, "EEPROM 0 device not found");
 
-	zassert_true(device_is_ready(i2c_0), "EEPROM 0 - I2C bus not ready");
-
-	TC_PRINT("Found EEPROM 0 on I2C bus device %s at addr %02x\n",
-		 i2c_0->name, addr_0);
-
-	zassert_not_null(i2c_1, "EEPROM 1 - I2C device not found");
-	zassert_not_null(eeprom_1, "EEPROM 1 device not found");
-
-	zassert_true(device_is_ready(i2c_1), "EEPROM 1 - I2C bus not ready");
-
-	TC_PRINT("Found EEPROM 1 on I2C bus device %s at addr %02x\n",
-		 i2c_1->name, addr_1);
-
-	if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
-		TC_PRINT("Testing dual-role\n");
-	} else {
-		TC_PRINT("Testing single-role\n");
+	if (!i2c_0) {
+		LOG_ERR("EEPROM 0 - I2C bus not found");
+		return;
 	}
 
-	for (int i = 0; i < 100; i++) {
+	if (!eeprom_0) {
+		LOG_ERR("EEPROM 0 - device not found");
+		return;
+	}
+
+	if (!device_is_ready(i2c_0)) {
+		LOG_ERR("device %s not ready", i2c_0->name);
+		return;
+}
+	LOG_INF("device %s is ready", i2c_0->name);
+
+	LOG_INF("Found EEPROM 0 on I2C bus device %s at addr %02x\n",
+		 i2c_0->name, addr_0);
+
 
 		/* Program differentiable data into the two devices through a back door
 		* that doesn't use I2C.
 		*/
 		ret = eeprom_target_program(eeprom_0, eeprom_0_data, TEST_DATA_SIZE);
-		zassert_equal(ret, 0, "Failed to program EEPROM 0");
-		if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
-			ret = eeprom_target_program(eeprom_1, eeprom_1_data,
-						TEST_DATA_SIZE);
-			zassert_equal(ret, 0, "Failed to program EEPROM 1");
+	if(ret) {
+		LOG_ERR("Failed to program EEPROM 0");
 		}
+
+	/* Init semaphore first */
+	k_sem_init(&test_objs.sem_sync, 0, 1);
+
+	while (true) {
+		/* Task wait event here */
+		k_sem_take(&test_objs.sem_sync, K_FOREVER);
+
+		switch (test_objs.cmd) {
+		case SMB_CMD0:
+			LOG_INF("Handle CMD0");
+			break;
+
+		case SMB_CMD1:
+			LOG_INF("Handle CMD1 with %d", test_objs.cmd1_args.val);
+			if (test_objs.cmd1_args.val == 1) {
 
 		/* Attach each EEPROM to its owning bus as a target device. */
 		ret = i2c_target_driver_register(eeprom_0);
-		zassert_equal(ret, 0, "Failed to register EEPROM 0");
-
-		if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
-			ret = i2c_target_driver_register(eeprom_1);
-			zassert_equal(ret, 0, "Failed to register EEPROM 1");
+				if(ret) {
+					LOG_ERR("Failed to register EEPROM 0");
+		}
+				LOG_INF("[GO]\r\n");
 		}
 
-		/* The simulated EP0 is configured to be accessed as a target device
-		* at addr_0 on i2c_0 and should expose eeprom_0_data.  The validation
-		* uses i2c_1 as a bus master to access this device, which works because
-		* i2c_0 and i2_c have their SDA (SCL) pins shorted (they are on the
-		* same physical bus).  Thus in these calls i2c_1 is a master device
-		* operating on the target address addr_0.
-		*
-		* Similarly validation of EP1 uses i2c_0 as a master with addr_1 and
-		* eeprom_1_data for validation.
-		*/
-		ret = run_full_read(i2c_1, addr_0, eeprom_0_data);
-		zassert_equal(ret, 0,
-				"Full I2C read from EP0 failed");
-		if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
-			ret = run_full_read(i2c_0, addr_1, eeprom_1_data);
-			zassert_equal(ret, 0,
-					"Full I2C read from EP1 failed");
-		}
+			if (test_objs.cmd1_args.val == 2) {
 
-		for (offset = 0 ; offset < TEST_DATA_SIZE-1 ; ++offset) {
-			zassert_equal(0, run_partial_read(i2c_1, addr_0,
-					eeprom_0_data, offset),
-					"Partial I2C read EP0 failed");
-			if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
-				zassert_equal(0, run_partial_read(i2c_0, addr_1,
-								eeprom_1_data,
-								offset),
-						"Partial I2C read EP1 failed");
+				/* Detach EEPROM */
+				ret = i2c_target_driver_unregister(eeprom_0);
+				if(ret) {
+					LOG_ERR("Failed to unregister EEPROM 0");
+			}
+				LOG_INF("[GO]\r\n");
+		}
+			break;
+
+		default:
+			break;
+		}
 			}
 		}
 
-		for (offset = 0 ; offset < TEST_DATA_SIZE-1 ; ++offset) {
-			zassert_equal(0, run_program_read(i2c_1, addr_0, offset),
-					"Program I2C read EP0 failed");
-			if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
-				zassert_equal(0, run_program_read(i2c_0, addr_1,
-								offset),
-						"Program I2C read EP1 failed");
-			}
+
+/* Test thread declaration */
+#define STACK_SIZE	1024
+#define THREAD_PRIORITY 1
+K_THREAD_DEFINE(smb_id, STACK_SIZE, smb_thread_entry, NULL, NULL, NULL, THREAD_PRIORITY, 0, -1);
+
+void main(void)
+{
+	k_thread_name_set(smb_id, "smb_testing");
+	k_thread_start(smb_id);
 		}
 
-		/* Detach EEPROM */
-		ret = i2c_target_driver_unregister(eeprom_0);
-		zassert_equal(ret, 0, "Failed to unregister EEPROM 0");
 
-		if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
-			ret = i2c_target_driver_unregister(eeprom_1);
-			zassert_equal(ret, 0, "Failed to unregister EEPROM 1");
+static int smb_command0(const struct shell *shell, size_t argc, char **argv)
+{
+	test_objs.cmd = SMB_CMD0;
+
+	/* Send event to task and wake it up */
+	k_sem_give(&test_objs.sem_sync);
+
+	return 0;
 		}
 
-		/* Program differentiable data into the two devices through a back door
-		 * that doesn't use I2C.
-		 */
-		ret = eeprom_target_program(eeprom_1, eeprom_1_data, TEST_DATA_SIZE);
-		zassert_equal(ret, 0, "Failed to program EEPROM 1");
-		if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
-			ret = eeprom_target_program(eeprom_0, eeprom_0_data,
-						TEST_DATA_SIZE);
-			zassert_equal(ret, 0, "Failed to program EEPROM 0");
+static int smb_command1(const struct shell *shell, size_t argc, char **argv)
+{
+	test_objs.cmd = SMB_CMD1;
+
+	char *eptr;
+	unsigned long val;
+
+	/* Convert integer from string */
+	val = strtoul(argv[1], &eptr, 0);
+	if (*eptr != '\0') {
+		shell_error(shell, "Invalid argument, '%s' is not an integer", argv[1]);
+		return -EINVAL;
 		}
 
-		/* Attach each EEPROM to its owning bus as a target device. */
-		ret = i2c_target_driver_register(eeprom_1);
-		zassert_equal(ret, 0, "Failed to register EEPROM 1");
-
-		if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
-			ret = i2c_target_driver_register(eeprom_0);
-			zassert_equal(ret, 0, "Failed to register EEPROM 0");
-		}
-
-		/* The simulated EP0 is configured to be accessed as a target device
-		 * at addr_0 on i2c_0 and should expose eeprom_0_data.  The validation
-		 * uses i2c_1 as a bus master to access this device, which works because
-		 * i2c_0 and i2_c have their SDA (SCL) pins shorted (they are on the
-		 * same physical bus).  Thus in these calls i2c_1 is a master device
-		 * operating on the target address addr_0.
-		 *
-		 * Similarly validation of EP1 uses i2c_0 as a master with addr_1 and
-		 * eeprom_1_data for validation.
-		 */
-		ret = run_full_read(i2c_0, addr_1, eeprom_1_data);
-		zassert_equal(ret, 0,
-				"Full I2C read from EP1 failed");
-		if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
-			ret = run_full_read(i2c_1, addr_0, eeprom_0_data);
-			zassert_equal(ret, 0,
-					"Full I2C read from EP0 failed");
-		}
-
-		for (offset = 0 ; offset < TEST_DATA_SIZE-1 ; ++offset) {
-			zassert_equal(0, run_partial_read(i2c_0, addr_1,
-					eeprom_1_data, offset),
-					"Partial I2C read EP1 failed");
-			if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
-				zassert_equal(0, run_partial_read(i2c_1, addr_0,
-								eeprom_0_data,
-								offset),
-						"Partial I2C read EP0 failed");
-			}
-		}
-
-		for (offset = 0 ; offset < TEST_DATA_SIZE-1 ; ++offset) {
-			zassert_equal(0, run_program_read(i2c_0, addr_1, offset),
-					"Program I2C read EP1 failed");
-			if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
-				zassert_equal(0, run_program_read(i2c_1, addr_0,
-								offset),
-						"Program I2C read EP0 failed");
-			}
-		}
-
-		/* Detach EEPROM */
-		ret = i2c_target_driver_unregister(eeprom_1);
-		zassert_equal(ret, 0, "Failed to unregister EEPROM 1");
-
-		if (IS_ENABLED(CONFIG_APP_DUAL_ROLE_I2C)) {
-			ret = i2c_target_driver_unregister(eeprom_0);
-			zassert_equal(ret, 0, "Failed to unregister EEPROM 0");
-		}
+	if (val >= 100) {
+		shell_error(shell, "val %s out of range", argv[1]);
+		return -EINVAL;
 	}
+
+	test_objs.cmd1_args.val = val;
+	/* Send event to task and wake it up */
+	k_sem_give(&test_objs.sem_sync);
+
+	return 0;
 }
 
-ZTEST_SUITE(i2c_eeprom_target, NULL, NULL, NULL, NULL, NULL);
+SHELL_STATIC_SUBCMD_SET_CREATE(sub_smb,
+			       SHELL_CMD_ARG(cmd0, NULL, "smb cmd0", smb_command0, 1, 0),
+			       SHELL_CMD_ARG(cmd1, NULL, "smb cmd1 <val_1>", smb_command1, 2, 0),
+			       SHELL_SUBCMD_SET_END /* Array terminated. */
+);
+SHELL_CMD_REGISTER(smb, &sub_smb, "smb validation commands", NULL);
