@@ -24,6 +24,7 @@
 		size = <0x40000000>; /* 1G bits = 128 Mbytes */
 		max-timeout = <86784>;
 		reg = <0>;
+
 		status = "okay";
 
 		/* Config for npcx4 SVB board - CS0 */
@@ -43,12 +44,13 @@
 			     &ext_flash_cs1_sl>;
 		pinctrl-names = "default"; */
 
-		/* UMA read, write mode selection */
+		/* UMA or DRA read mode selection */
 		read-mode  = "QUAD_IO";
-		write-mode = "QUAD_OUTPUT";
+		/* Force read mode as direct read access (DRA) */
+		en-dra;
 
-		/* Force read mode as quad_io direct access */
-		en-direct-read-quad;
+		/* UMA write mode selection */
+		write-mode = "QUAD_OUTPUT";
 
 		/* NAND flash information */
 		page-size = <0x800>;    /* 1 page = 2048 bytes*/
