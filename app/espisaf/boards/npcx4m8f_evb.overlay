@@ -38,8 +38,9 @@
 		pinctrl-names = "default";
 
 		/* Read,Write mode */
-		read-mode  = "QUAD_OUTPUT";
+		read-mode  = "QUAD_IO";
 		write-mode = "QUAD_OUTPUT";
+		en-dra;
 
 		/* nand flash information */
 		page-size = <0x800>;    /* 1 page = 2048 bytes*/
@@ -55,7 +56,6 @@
 		compatible = "nuvoton,npcx-espi-saf";
 		reg = <0x4000a000 0x2000>;
 
-		flash = "SHARED";
 		mapped-addr = <0x68000000>;
 
 		#address-cells = <1>;

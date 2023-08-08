@@ -275,6 +275,8 @@ int saf_npcx_flash_unsupport(const struct device *dev,
 	saf_data.data = (uint8_t *)info->buf;
 	pckt_saf.buf = (uint8_t *)&saf_data;
 
+	espi_send_vwire(espi_dev, ESPI_VWIRE_SIGNAL_ERR_NON_FATAL, 1);
+
 	return espi_saf_flash_unsuccess(dev, &pckt_saf);
 }
 
