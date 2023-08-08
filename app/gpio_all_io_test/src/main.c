@@ -14,8 +14,11 @@
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
+#if defined(CONFIG_SOC_SERIES_NPCK3)
 #define PIN_INPUT 1
-
+#elif defined(CONFIG_SOC_SERIES_NPCX4)
+#define PIN_INPUT 0
+#endif
 struct test_pin_t {
 	uint8_t port;
 	uint8_t bit;
@@ -192,6 +195,142 @@ enum {
 	{ GPIO_GROUP_STB1, 6, IOTYPE_IO },      \
 	{ GPIO_GROUP_STB1, 7, IOTYPE_OUTPUT_ONLY },        \
 }
+#elif defined(CONFIG_SOC_SERIES_NPCX4)
+#define GPIO_PINIO_TABLE { \
+	{ GPIO_GROUP_0, 0, IOTYPE_IO },			\
+	{ GPIO_GROUP_0, 1, IOTYPE_IO },			\
+	{ GPIO_GROUP_0, 2, IOTYPE_IO },			\
+	{ GPIO_GROUP_0, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_0, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_0, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_0, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_0, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_1, 2, IOTYPE_IO },			\
+	{ GPIO_GROUP_1, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_1, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_1, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_2, 2, IOTYPE_IO },			\
+	{ GPIO_GROUP_2, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_2, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_2, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_2, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_2, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_3, 0, IOTYPE_IO },			\
+	{ GPIO_GROUP_3, 1, IOTYPE_IO },			\
+	{ GPIO_GROUP_3, 2, IOTYPE_OUTPUT_ONLY },			\
+	{ GPIO_GROUP_3, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_3, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_3, 5, IOTYPE_OUTPUT_ONLY },         \
+	{ GPIO_GROUP_3, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_3, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_4, 0, IOTYPE_IO },			\
+	{ GPIO_GROUP_4, 1, IOTYPE_IO },			\
+	{ GPIO_GROUP_4, 2, IOTYPE_IO },			\
+	{ GPIO_GROUP_4, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_4, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_4, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_4, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_4, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_5, 0, IOTYPE_IO },			\
+	{ GPIO_GROUP_5, 1, IOTYPE_IO },			\
+	{ GPIO_GROUP_5, 2, IOTYPE_IO },			\
+	{ GPIO_GROUP_5, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_5, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_5, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_5, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_5, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_6, 0, IOTYPE_IO },			\
+	{ GPIO_GROUP_6, 1, IOTYPE_IO },			\
+	{ GPIO_GROUP_6, 2, IOTYPE_IO },			\
+	{ GPIO_GROUP_6, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_6, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_6, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_7, 0, IOTYPE_IO },			\
+	{ GPIO_GROUP_7, 2, IOTYPE_IO },			\
+	{ GPIO_GROUP_7, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_7, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_7, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_7, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_7, 7, IOTYPE_OUTPUT_ONLY },         \
+	{ GPIO_GROUP_8, 0, IOTYPE_IO },			\
+	{ GPIO_GROUP_8, 1, IOTYPE_IO },			\
+	{ GPIO_GROUP_8, 2, IOTYPE_IO },			\
+	{ GPIO_GROUP_8, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_8, 6, IOTYPE_OUTPUT_ONLY },         \
+	{ GPIO_GROUP_8, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_9, 0, IOTYPE_IO },			\
+	{ GPIO_GROUP_9, 1, IOTYPE_IO },			\
+	{ GPIO_GROUP_9, 2, IOTYPE_IO },			\
+	{ GPIO_GROUP_B, 1, IOTYPE_IO },			\
+	{ GPIO_GROUP_B, 2, IOTYPE_IO },			\
+	{ GPIO_GROUP_B, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_B, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_B, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_B, 6, IOTYPE_OUTPUT_ONLY },         \
+	{ GPIO_GROUP_B, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_C, 0, IOTYPE_IO },			\
+	{ GPIO_GROUP_C, 1, IOTYPE_IO },			\
+	{ GPIO_GROUP_C, 2, IOTYPE_IO },			\
+	{ GPIO_GROUP_C, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_C, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_C, 5, IOTYPE_IO },         \
+	{ GPIO_GROUP_C, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_C, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_D, 0, IOTYPE_IO },			\
+	{ GPIO_GROUP_D, 1, IOTYPE_IO },			\
+	{ GPIO_GROUP_D, 2, IOTYPE_IO },			\
+	{ GPIO_GROUP_D, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_D, 6, IOTYPE_IO },         \
+	{ GPIO_GROUP_D, 7, IOTYPE_OUTPUT_ONLY },         \
+	{ GPIO_GROUP_E, 0, IOTYPE_IO },			\
+	{ GPIO_GROUP_E, 1, IOTYPE_IO },			\
+	{ GPIO_GROUP_E, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_E, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_E, 7, IOTYPE_IO },         \
+	{ GPIO_GROUP_F, 0, IOTYPE_IO },			\
+	{ GPIO_GROUP_F, 1, IOTYPE_IO },			\
+	{ GPIO_GROUP_F, 2, IOTYPE_IO },			\
+	{ GPIO_GROUP_F, 3, IOTYPE_IO },         \
+	{ GPIO_GROUP_F, 4, IOTYPE_IO },         \
+	{ GPIO_GROUP_F, 5, IOTYPE_IO },         \
+}
+
+#define UART1_IO_TABLE { \
+	{ GPIO_GROUP_1, 0, IOTYPE_IO },			\
+	{ GPIO_GROUP_1, 1, IOTYPE_IO },			\
+}
+
+#define JTAG0_IO_TABLE { \
+	{ GPIO_GROUP_1, 6, IOTYPE_IO },			\
+	{ GPIO_GROUP_1, 7, IOTYPE_IO },			\
+	{ GPIO_GROUP_2, 0, IOTYPE_IO },			\
+	{ GPIO_GROUP_2, 1, IOTYPE_IO },			\
+}
+
+#define JTAG1_IO_TABLE { \
+	{ GPIO_GROUP_D, 4, IOTYPE_IO },			\
+	{ GPIO_GROUP_D, 5, IOTYPE_IO },			\
+	{ GPIO_GROUP_E, 2, IOTYPE_IO },			\
+	{ GPIO_GROUP_E, 5, IOTYPE_IO },			\
+}
+
+#define FLM_IO_TABLE { \
+	{ GPIO_GROUP_9, 3, IOTYPE_IO },			\
+	{ GPIO_GROUP_9, 6, IOTYPE_IO },			\
+	{ GPIO_GROUP_A, 0, IOTYPE_IO },			\
+	{ GPIO_GROUP_A, 2, IOTYPE_IO },			\
+	{ GPIO_GROUP_A, 4, IOTYPE_IO },			\
+	{ GPIO_GROUP_A, 7, IOTYPE_IO },			\
+}
+
+#define PVU_IO_TABLE { \
+	{ GPIO_GROUP_9, 4, IOTYPE_IO },			\
+	{ GPIO_GROUP_9, 5, IOTYPE_IO },			\
+	{ GPIO_GROUP_9, 7, IOTYPE_IO },			\
+	{ GPIO_GROUP_A, 1, IOTYPE_IO },			\
+	{ GPIO_GROUP_A, 3, IOTYPE_IO },			\
+	{ GPIO_GROUP_B, 0, IOTYPE_IO },			\
+}
 #endif
 
 const struct device *const dev_in = DEVICE_DT_GET(DT_NODELABEL(gpio0));
@@ -207,6 +346,7 @@ enum {
 int cmd_type = NONE;
 static struct test_pin_t io_pins[] = GPIO_PINIO_TABLE;
 static const uint16_t sz_io_pins = ARRAY_SIZE(io_pins);
+
 const char io_name[GPIO_GROUP_COUNT][5] = {
 	"0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
 	"A", "B", "C", "D", "E", "F", "G", "H",
@@ -353,14 +493,14 @@ static void auto_gpio_thread_entry(void)
 	int gpio_val;
 	uint32_t io = 0;
 
-	LOG_INF("auto_gpio_thread_entry");
+	LOG_INF("auto gpio thread entry");
 	
 	while (true) {
 		switch (k_event_wait(&gpio_test_event, 0xFFF, true, K_FOREVER)) {
 		case GPIO_SYNC:
 			gpio_remove_callback(dev_in, &gpio_cb);
-
 			if (io_pins[io].iotype != IOTYPE_OUTPUT_ONLY) {
+
 				ret = gpio_pin_configure(gpio_objs[io_pins[io].port].dev,
 					io_pins[io].bit, GPIO_INPUT);
 				if (ret)
@@ -385,6 +525,7 @@ static void auto_gpio_thread_entry(void)
 			}
 
 			if (io_pins[io].iotype != IOTYPE_INPUT_ONLY) {
+
 				/* Case 3: Test write high */
 				ret = gpio_pin_configure(gpio_objs[io_pins[io].port].dev,
 					io_pins[io].bit,
@@ -419,6 +560,7 @@ static void auto_gpio_thread_entry(void)
 			}
 
 			if (io_pins[io].iotype != IOTYPE_OUTPUT_ONLY) {
+
 				/* Case 5: Test PU */
 				ret = gpio_pin_configure(gpio_objs[io_pins[io].port].dev,
 					io_pins[io].bit,
@@ -436,9 +578,8 @@ static void auto_gpio_thread_entry(void)
 				}
 #if defined(CONFIG_SOC_SERIES_NPCK3)
 				/* GPIO70 */
-				if (io == 46) {
+				if (io == 46)
 					k_sleep(K_MSEC(1500));
-				}
 #endif
 				/* Case 6: Test PD */
 				ret = gpio_pin_configure(gpio_objs[io_pins[io].port].dev,
@@ -458,6 +599,7 @@ static void auto_gpio_thread_entry(void)
 			}
 
 			if (io_pins[io].iotype == IOTYPE_IO) {
+
 				/* Case 7: Test OD/UP */
 				ret = gpio_pin_configure(gpio_objs[io_pins[io].port].dev,
 					io_pins[io].bit,
@@ -490,11 +632,10 @@ static void auto_gpio_thread_entry(void)
 					io_results[OD_OUTPUT_LOW_FAIL][io] = OD_OUTPUT_LOW_FAIL;
 				}
 			}
-
 			io++;
 
-			if (io != sz_io_pins) {
-				LOG_INF("GPIO test keep going!!");
+			if (io < sz_io_pins) {
+				LOG_INF("[%d]GPIO test keep going!!", io);
 				ret = gpio_pin_configure(dev_in, PIN_INPUT, GPIO_INPUT);
 				if (ret)
 					LOG_ERR("Configure input fail.\n");
@@ -509,9 +650,12 @@ static void auto_gpio_thread_entry(void)
 				if (ret)
 					LOG_ERR("Configure callback fail.\n");
 			} else {
-#if defined(CONFIG_SOC_SERIES_NPCK3)
-				*(volatile uint8_t*)(0x400C3011) = 0x06; /*Enable UART*/
-#endif
+			#if defined(CONFIG_SOC_SERIES_NPCK3)
+				*(volatile uint8_t*)(0x400C3011) = 0x06;
+			#elif defined(CONFIG_SOC_SERIES_NPCX4)
+				/*Enable UART1_2*/
+				*(volatile uint8_t*)(0x400C3022) = 0x0C;
+			#endif
 				gpio_print_io_report();
 				LOG_INF("GPIO test finish!!");
 			}
@@ -522,11 +666,12 @@ static void auto_gpio_thread_entry(void)
 	}
 }
 
-#define NPCX_EPURST_CTL_EPUR2_EN			3
+#define NPCX_EPURST_CTL_EPUR2_EN	3
+#define NPCX_HIF_TYPE_LPC	1
 /* Main entry */
 void main(void)
 {
-	LOG_INF("--- CI20 Zephyr Driver Validation ---");
+	LOG_INF("--- CI20 Zephyr GPIO Driver Validation ---");
 	int ret;
 	cmd_type = GPIO_SYNC;
 #if defined(CONFIG_SOC_SERIES_NPCK3)
@@ -534,6 +679,19 @@ void main(void)
 	struct glue_reg *inst_glue = (struct glue_reg *)(NPCX_GLUE_REG_ADDR);
 	inst_glue->EPURST_CTL &= ~BIT(NPCX_EPURST_CTL_EPUR2_EN);
 	*(volatile uint8_t*)(0x400C3011) = 0x00;
+#elif defined(CONFIG_SOC_SERIES_NPCX4)/*ToDo pinctl*/
+	/*Select VHIF 3.3V*/
+	/*Register addr: 400c3000, bit set 0xD4*/
+	struct scfg_reg *inst_scfg = (struct scfg_reg *)(NPCX_SCFG_REG_ADDR);
+
+	SET_FIELD(inst_scfg->DEVCNT, NPCX_DEVCNT_HIF_TYP_SEL_FIELD, NPCX_HIF_TYPE_LPC);
+
+	/*No LPC or eSPI interface select*/
+	*(volatile uint8_t*)(0x400C3011) = 0x90;
+	/*No Vcc1 Rst*/
+	*(volatile uint8_t*)(0x400C301A) = 0x53;
+	/*Disable UART1_2*/
+	*(volatile uint8_t*)(0x400C3022) = 0x00;
 #endif
 
 	ret = gpio_config_init();
