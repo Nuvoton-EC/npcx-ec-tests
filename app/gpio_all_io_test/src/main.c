@@ -658,6 +658,7 @@ static void auto_gpio_thread_entry(void)
 			#endif
 				gpio_print_io_report();
 				LOG_INF("GPIO test finish!!");
+				LOG_INF("[GO]\r\n");
 			}
 		break;
 		default:
