@@ -20,7 +20,7 @@
 #if defined(CONFIG_ESPI_SAF)
 #include <zephyr/drivers/espi_saf.h>
 #include <zephyr/drivers/flash.h>
-#include "saf_util.h"
+#include "taf_util.h"
 #endif
 
 LOG_MODULE_REGISTER(espi_saf);
@@ -50,11 +50,11 @@ LOG_MODULE_REGISTER(espi_saf);
 #define EVENT_TYPE(x)			(x & EVENT_MASK)
 #define EVENT_DETAILS(x)		((x & EVENT_DETAILS_MASK) >> EVENT_DETAILS_POS)
 #define SPI_NAND_PAGE_SIZE		0x0800U
-#define NUM_FLASH_DEVICE ARRAY_SIZE(flash_devices)
+#define NUM_FLASH_DEVICE		ARRAY_SIZE(flash_devices)
 
 static const struct device *const espi_dev = DEVICE_DT_GET(DT_NODELABEL(espi0));
 #if defined(CONFIG_ESPI_SAF)
-static const struct device *const saf_dev = DEVICE_DT_GET(DT_NODELABEL(espi_saf));
+static const struct device *const taf_dev = DEVICE_DT_GET(DT_NODELABEL(espi_taf));
 static const struct device *const spi_dev = DEVICE_DT_GET(DT_ALIAS(flash_dev));
 #endif
 
@@ -63,7 +63,7 @@ static struct espi_callback vw_rdy_cb;
 static struct espi_callback vw_cb;
 static struct espi_callback p80_cb;
 #if defined(CONFIG_ESPI_SAF) && defined(CONFIG_ESPI_FLASH_CHANNEL)
-static struct espi_callback espi_saf_cb;
+static struct espi_callback espi_taf_cb;
 #endif
 static uint8_t espi_rst_sts;
 static uint8_t nand_data_buf[SPI_NAND_PAGE_SIZE];
@@ -97,11 +97,11 @@ static const struct espi_saf_pr flash_protect_regions[2] = {
 	},
 };
 
-static const struct espi_saf_cfg saf_cfg_nand = {
+static const struct espi_saf_cfg taf_cfg_nand = {
 	.nflash_devices = 1U,
 };
 
-static const struct espi_saf_protection saf_pr_flash = {
+static const struct espi_saf_protection taf_pr_flash = {
 	.nregions = 2U,
 	.pregions = flash_protect_regions
 };
@@ -207,94 +207,94 @@ static void periph_handler(const struct device *dev, struct espi_callback *cb,
 
 #ifdef CONFIG_ESPI_FLASH_CHANNEL
 #if defined(CONFIG_ESPI_SAF)
-int saf_npcx_flash_read(const struct device *dev, struct saf_handle_data *info)
+int taf_npcx_flash_read(const struct device *dev, struct taf_handle_data *info)
 {
-	struct espi_saf_npcx_pckt saf_data;
-	struct espi_saf_packet pckt_saf;
+	struct espi_taf_npcx_pckt taf_data;
+	struct espi_saf_packet pckt_taf;
 
-	pckt_saf.flash_addr = info->address;
-	pckt_saf.len = info->length;
-	saf_data.tag = info->saf_tag;
-	saf_data.data = (uint8_t *)info->buf;
-	pckt_saf.buf = (uint8_t *)&saf_data;
+	pckt_taf.flash_addr = info->address;
+	pckt_taf.len = info->length;
+	taf_data.tag = info->taf_tag;
+	taf_data.data = (uint8_t *)info->buf;
+	pckt_taf.buf = (uint8_t *)&taf_data;
 
-	return espi_saf_flash_read(dev, &pckt_saf);
+	return espi_saf_flash_read(dev, &pckt_taf);
 }
 
-int saf_npcx_flash_write(const struct device *dev, struct saf_handle_data *info)
+int taf_npcx_flash_write(const struct device *dev, struct taf_handle_data *info)
 {
-	struct espi_saf_npcx_pckt saf_data;
-	struct espi_saf_packet pckt_saf;
+	struct espi_taf_npcx_pckt taf_data;
+	struct espi_saf_packet pckt_taf;
 
-	pckt_saf.flash_addr = info->address;
-	pckt_saf.len = info->length;
-	saf_data.tag = info->saf_tag;
-	saf_data.data = (uint8_t *)info->src;
-	pckt_saf.buf = (uint8_t *)&saf_data;
-	return espi_saf_flash_write(dev, &pckt_saf);
+	pckt_taf.flash_addr = info->address;
+	pckt_taf.len = info->length;
+	taf_data.tag = info->taf_tag;
+	taf_data.data = (uint8_t *)info->src;
+	pckt_taf.buf = (uint8_t *)&taf_data;
+	return espi_saf_flash_write(dev, &pckt_taf);
 }
 
-int saf_npcx_flash_erase(const struct device *dev, struct saf_handle_data *info)
+int taf_npcx_flash_erase(const struct device *dev, struct taf_handle_data *info)
 {
-	struct espi_saf_npcx_pckt saf_data;
-	struct espi_saf_packet pckt_saf;
+	struct espi_taf_npcx_pckt taf_data;
+	struct espi_saf_packet pckt_taf;
 
-	pckt_saf.flash_addr = info->address;
-	pckt_saf.len = info->length;
-	saf_data.tag = info->saf_tag;
-	saf_data.data = (uint8_t *)info->buf;
-	pckt_saf.buf = (uint8_t *)&saf_data;
-	return espi_saf_flash_erase(dev, &pckt_saf);
+	pckt_taf.flash_addr = info->address;
+	pckt_taf.len = info->length;
+	taf_data.tag = info->taf_tag;
+	taf_data.data = (uint8_t *)info->buf;
+	pckt_taf.buf = (uint8_t *)&taf_data;
+	return espi_saf_flash_erase(dev, &pckt_taf);
 }
 
-int saf_npcx_flash_unsupport(const struct device *dev, struct saf_handle_data *info)
+int taf_npcx_flash_unsupport(const struct device *dev, struct taf_handle_data *info)
 {
-	struct espi_saf_npcx_pckt saf_data;
-	struct espi_saf_packet pckt_saf;
+	struct espi_taf_npcx_pckt taf_data;
+	struct espi_saf_packet pckt_taf;
 
-	pckt_saf.flash_addr = info->address;
-	pckt_saf.len = info->length;
-	saf_data.tag = info->saf_tag;
-	saf_data.data = (uint8_t *)info->buf;
-	pckt_saf.buf = (uint8_t *)&saf_data;
+	pckt_taf.flash_addr = info->address;
+	pckt_taf.len = info->length;
+	taf_data.tag = info->taf_tag;
+	taf_data.data = (uint8_t *)info->buf;
+	pckt_taf.buf = (uint8_t *)&taf_data;
 
 	espi_send_vwire(espi_dev, ESPI_VWIRE_SIGNAL_ERR_NON_FATAL, 1);
 
-	return espi_saf_flash_unsuccess(dev, &pckt_saf);
+	return espi_saf_flash_unsuccess(dev, &pckt_taf);
 }
 
-/* Parse the information for eSPI SAF */
-void espi_saf_handler(const struct device *dev, struct saf_handle_data *pckt,
+/* Parse the information for eSPI TAF */
+void espi_taf_handler(const struct device *dev, struct taf_handle_data *pckt,
 		      struct espi_event event)
 {
-	uint32_t saf_hdr;
+	uint32_t taf_hdr;
 	uint32_t *data_ptr;
 	uint8_t  i, roundsize;
 
 	data_ptr = (uint32_t *)event.evt_data;
 
-	saf_hdr = LE32(*data_ptr);
-	pckt->saf_type = MSB1(saf_hdr);
-	pckt->length = LSW(saf_hdr) & 0xFFF;
-	pckt->saf_tag = MSN(MSB2(saf_hdr));
+	taf_hdr = LE32(*data_ptr);
+	pckt->taf_type = MSB1(taf_hdr);
+	pckt->length = LSW(taf_hdr) & 0xFFF;
+	pckt->taf_tag = MSN(MSB2(taf_hdr));
 
-	if (pckt->length == 0 && (pckt->saf_type & 0xF) != ESPI_FLASH_SAF_REQ_ERASE) {
+	if (pckt->length == 0 && (pckt->taf_type & 0xF) != ESPI_FLASH_TAF_REQ_ERASE) {
 		pckt->length = _4KB_;
 	}
 
 	/* Get address from FLASHRXBUF1 */
-	if (CONFIG_ESPI_SAF_DIRECT_ACCESS) {
+	if (IS_ENABLED(CONFIG_ESPI_TAF_DIRECT_ACCESS)) {
 		pckt->address = LE32(*(data_ptr + 1));
 	} else {
 		pckt->address = LE32(*data_ptr);
 	}
 	pckt->buf = tx_buf_data;
 
-	/* Get written data if eSPI SAF write */
-	if ((pckt->saf_type & 0xF) == ESPI_FLASH_SAF_REQ_WRITE) {
+	/* Get written data if eSPI TAF write */
+	if ((pckt->taf_type & 0xF) == ESPI_FLASH_TAF_REQ_WRITE) {
 		roundsize = DIV_CEILING(pckt->length, sizeof(uint32_t));
 		for (i = 0; i < roundsize; i++) {
-			if (CONFIG_ESPI_SAF_DIRECT_ACCESS) {
+			if (IS_ENABLED(CONFIG_ESPI_TAF_DIRECT_ACCESS)) {
 				pckt->src[i] = *(data_ptr + (i + 2));
 			} else {
 				pckt->src[i] = *data_ptr;
@@ -303,14 +303,14 @@ void espi_saf_handler(const struct device *dev, struct saf_handle_data *pckt,
 	}
 }
 
-/* eSPI SAF event handler */
-static void espi_saf_ev_handler(const struct device *dev, struct espi_callback *cb,
+/* eSPI TAF event handler */
+static void espi_taf_ev_handler(const struct device *dev, struct espi_callback *cb,
 				struct espi_event event)
 {
 	if (event.evt_type == ESPI_BUS_SAF_NOTIFICATION) {
 		if (event.evt_details == ESPI_CHANNEL_FLASH) {
-			espi_saf_handler(dev, &saf_data, event);
-			k_work_submit(&saf_data.work);
+			espi_taf_handler(dev, &taf_data, event);
+			k_work_submit(&taf_data.work);
 		}
 	}
 }
@@ -346,7 +346,7 @@ int espi_init(void)
 	espi_init_callback(&vw_cb, vwire_handler, ESPI_BUS_EVENT_VWIRE_RECEIVED);
 	espi_init_callback(&p80_cb, periph_handler, ESPI_BUS_PERIPHERAL_NOTIFICATION);
 #if defined(CONFIG_ESPI_SAF) && defined(CONFIG_ESPI_FLASH_CHANNEL)
-	espi_init_callback(&espi_saf_cb, espi_saf_ev_handler, ESPI_BUS_SAF_NOTIFICATION);
+	espi_init_callback(&espi_taf_cb, espi_taf_ev_handler, ESPI_BUS_SAF_NOTIFICATION);
 #endif
 	LOG_INF("complete");
 	LOG_INF("eSPI test - callbacks registration... ");
@@ -355,7 +355,7 @@ int espi_init(void)
 	espi_add_callback(espi_dev, &vw_cb);
 	espi_add_callback(espi_dev, &p80_cb);
 #if defined(CONFIG_ESPI_SAF) && defined(CONFIG_ESPI_FLASH_CHANNEL)
-	espi_add_callback(espi_dev, &espi_saf_cb);
+	espi_add_callback(espi_dev, &espi_taf_cb);
 #endif
 	LOG_INF("complete");
 	return ret;
@@ -457,7 +457,7 @@ int espi_handshake(void)
 	return 0;
 }
 
-static void espi_saf_thread_entry(void)
+static void espi_taf_thread_entry(void)
 {
 	int ret;
 	int enable = 1;
@@ -486,44 +486,44 @@ static void espi_saf_thread_entry(void)
 	}
 	LOG_INF("eSPI sample completed err: %d", ret);
 
-	espi_saf_config(saf_dev, &saf_cfg_nand);
-	espi_saf_activate(saf_dev);
+	espi_saf_config(taf_dev, &taf_cfg_nand);
+	espi_saf_activate(taf_dev);
 
-	k_work_init(&saf_data.work, flash_handler);
+	k_work_init(&taf_data.work, flash_handler);
 }
 
 void flash_handler(struct k_work *item)
 {
-	struct saf_handle_data *info = CONTAINER_OF(item, struct saf_handle_data, work);
+	struct taf_handle_data *info = CONTAINER_OF(item, struct taf_handle_data, work);
 	int ret = 0;
 
-	switch (info->saf_type & 0x0F) {
-	case ESPI_FLASH_SAF_REQ_READ:
-		ret = saf_npcx_flash_read(saf_dev, &saf_data);
+	switch (info->taf_type & 0x0F) {
+	case ESPI_FLASH_TAF_REQ_READ:
+		ret = taf_npcx_flash_read(taf_dev, &taf_data);
 		break;
-	case ESPI_FLASH_SAF_REQ_ERASE:
-		ret = saf_npcx_flash_erase(saf_dev, &saf_data);
+	case ESPI_FLASH_TAF_REQ_ERASE:
+		ret = taf_npcx_flash_erase(taf_dev, &taf_data);
 		break;
-	case ESPI_FLASH_SAF_REQ_WRITE:
-		ret = saf_npcx_flash_write(saf_dev, &saf_data);
+	case ESPI_FLASH_TAF_REQ_WRITE:
+		ret = taf_npcx_flash_write(taf_dev, &taf_data);
 		break;
 	}
 
 	if (ret != 0) {
-		ret = saf_npcx_flash_unsupport(saf_dev, &saf_data);
+		ret = taf_npcx_flash_unsupport(taf_dev, &taf_data);
 	}
 }
 
 #define STACK_SIZE	1024
 #define THREAD_PRIORITY 1
 
-K_THREAD_DEFINE(espi_saf_id, STACK_SIZE, espi_saf_thread_entry, NULL, NULL, NULL,
+K_THREAD_DEFINE(espi_taf_id, STACK_SIZE, espi_taf_thread_entry, NULL, NULL, NULL,
 		THREAD_PRIORITY, 0, -1);
 
-void test_espi_saf_init(void)
+void test_espi_taf_init(void)
 {
-	k_thread_name_set(espi_saf_id, "espi_saf_testing");
-	k_thread_start(espi_saf_id);
+	k_thread_name_set(espi_taf_id, "espi_taf_testing");
+	k_thread_start(espi_taf_id);
 }
 
 static int flash_erase_cmd(const struct shell *shell, size_t argc, char **argv)
@@ -598,17 +598,17 @@ static int flash_write_cmd(const struct shell *shell, size_t argc, char **argv)
 
 int cmd_flash_protection(void)
 {
-	espi_saf_set_protection_regions(saf_dev, &saf_pr_flash);
+	espi_saf_set_protection_regions(taf_dev, &taf_pr_flash);
 	return 0;
 }
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_espi,
-	SHELL_CMD_ARG(flash_erase, NULL, "espi_saf flash_erase <addr>",
+	SHELL_CMD_ARG(flash_erase, NULL, "espi_taf flash_erase <addr>",
 		flash_erase_cmd, 2, 0),
-	SHELL_CMD_ARG(flash_write, NULL, "espi_saf flash_write <addr>",
+	SHELL_CMD_ARG(flash_write, NULL, "espi_taf flash_write <addr>",
 		flash_write_cmd, 2, 0),
-	SHELL_CMD(set_pr, NULL, "espi_saf set_pr", cmd_flash_protection),
+	SHELL_CMD(set_pr, NULL, "espi_taf set_pr", cmd_flash_protection),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 );
 
-SHELL_CMD_REGISTER(espi_saf, &sub_espi, "Test Commands", NULL);
+SHELL_CMD_REGISTER(espi_taf, &sub_espi, "Test Commands", NULL);

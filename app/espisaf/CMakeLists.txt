@@ -6,5 +6,5 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(npcx_tests)
 
 target_sources(app PRIVATE src/main.c)
-target_sources(app PRIVATE src/test_espi_saf.c)
-target_sources(app PRIVATE src/saf_util.h)
+target_sources(app PRIVATE src/test_espi_taf.c)
+target_sources(app PRIVATE src/taf_util.h)

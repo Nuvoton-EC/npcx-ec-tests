@@ -52,8 +52,8 @@
 };
 
 &espi0 {
-	espi_saf: espisaf@4000a000 {
-		compatible = "nuvoton,npcx-espi-saf";
+	espi_taf: espitaf@4000a000 {
+		compatible = "nuvoton,npcx-espi-taf";
 		reg = <0x4000a000 0x2000>;
 
 		mapped-addr = <0x68000000>;

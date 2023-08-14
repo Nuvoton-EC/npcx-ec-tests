@@ -15,7 +15,7 @@
 LOG_MODULE_REGISTER(main);
 
 /* Test function declarations */
-void test_espi_saf_init(void);
+void test_espi_taf_init(void);
 
 /* Main entry */
 void main(void)
@@ -23,7 +23,7 @@ void main(void)
 	LOG_INF("--- CI20 Zephyr Driver Validation ---");
 
 	/* Zephyr driver validation init */
-	test_espi_saf_init();
+	test_espi_taf_init();
 
 	/* Let main thread go to sleep state */
 	k_sleep(K_FOREVER);
