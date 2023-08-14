@@ -1,0 +1,231 @@
+/*
+ * Copyright (c) 2023 Nuvoton Technology Corporation.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/ {
+	chosen {
+		zephyr,shell-uart = &uart1;
+	};
+};
+
+/ {
+	adc_cmp {
+		npcx_adc0_ch0: adc0_ch0_cmp {
+			compatible = "nuvoton,adc-cmp";
+			io-channels = <&adc0 0>;
+			comparison = "ADC_CMP_NPCX_GREATER";
+			threshold-mv = <1800>;
+			thr-sel = <0>;
+		};
+		npcx_adc0_ch1: adc0_ch1_cmp {
+			compatible = "nuvoton,adc-cmp";
+			io-channels = <&adc0 1>;
+			comparison = "ADC_CMP_NPCX_GREATER";
+			threshold-mv = <1800>;
+			thr-sel = <1>;
+		};
+		npcx_adc0_ch2: adc0_ch2_cmp {
+			compatible = "nuvoton,adc-cmp";
+			io-channels = <&adc0 2>;
+			comparison = "ADC_CMP_NPCX_GREATER";
+			threshold-mv = <1800>;
+			thr-sel = <2>;
+		};
+		npcx_adc0_ch3: adc0_ch3_cmp {
+			compatible = "nuvoton,adc-cmp";
+			io-channels = <&adc0 3>;
+			comparison = "ADC_CMP_NPCX_GREATER";
+			threshold-mv = <1800>;
+			thr-sel = <3>;
+		};
+		npcx_adc0_ch4: adc0_ch4_cmp {
+			compatible = "nuvoton,adc-cmp";
+			io-channels = <&adc0 4>;
+			comparison = "ADC_CMP_NPCX_GREATER";
+			threshold-mv = <1800>;
+			thr-sel = <4>;
+		};
+		npcx_adc0_ch5: adc0_ch5_cmp {
+			compatible = "nuvoton,adc-cmp";
+			io-channels = <&adc0 5>;
+			comparison = "ADC_CMP_NPCX_GREATER";
+			threshold-mv = <1800>;
+			thr-sel = <5>;
+		};
+		npcx_adc1_ch0: adc1_ch0_cmp {
+			compatible = "nuvoton,adc-cmp";
+			io-channels = <&adc1 16>;
+			comparison = "ADC_CMP_NPCX_LESS_OR_EQUAL";
+			threshold-mv = <1800>;
+			thr-sel = <0>;
+		};
+		npcx_adc1_ch1: adc1_ch1_cmp {
+			compatible = "nuvoton,adc-cmp";
+			io-channels = <&adc1 17>;
+			comparison = "ADC_CMP_NPCX_LESS_OR_EQUAL";
+			threshold-mv = <1800>;
+			thr-sel = <1>;
+		};
+		npcx_adc1_ch2: adc1_ch2_cmp {
+			compatible = "nuvoton,adc-cmp";
+			io-channels = <&adc1 18>;
+			comparison = "ADC_CMP_NPCX_LESS_OR_EQUAL";
+			threshold-mv = <1800>;
+			thr-sel = <2>;
+		};
+		npcx_adc1_ch3: adc1_ch3_cmp {
+			compatible = "nuvoton,adc-cmp";
+			io-channels = <&adc1 19>;
+			comparison = "ADC_CMP_NPCX_LESS_OR_EQUAL";
+			threshold-mv = <1800>;
+			thr-sel = <3>;
+		};
+		npcx_adc1_ch4: adc1_ch4_cmp {
+			compatible = "nuvoton,adc-cmp";
+			io-channels = <&adc1 20>;
+			comparison = "ADC_CMP_NPCX_LESS_OR_EQUAL";
+			threshold-mv = <1800>;
+			thr-sel = <4>;
+		};
+		npcx_adc1_ch5: adc1_ch5_cmp {
+			compatible = "nuvoton,adc-cmp";
+			io-channels = <&adc1 21>;
+			comparison = "ADC_CMP_NPCX_LESS_OR_EQUAL";
+			threshold-mv = <1800>;
+			thr-sel = <5>;
+		};
+	};
+};
+
+&adc0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	status = "okay";
+	/* Use adc0 channel 0~5 for 'adc_api' driver tests */
+	pinctrl-0 = <&adc0_chan0_gp45
+		     &adc0_chan1_gp44
+		     &adc0_chan2_gp43
+		     &adc0_chan3_gp42
+		     &adc0_chan4_gp41
+		     &adc0_chan5_gp37>;
+
+	pinctrl-names = "default";
+
+	channel@0 {
+		reg = <0>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,vref-mv = <2816>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <10>;
+	};
+	channel@1 {
+		reg = <1>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,vref-mv = <2816>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <10>;
+	};
+	channel@2 {
+		reg = <2>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,vref-mv = <2816>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <10>;
+	};
+	channel@3 {
+		reg = <3>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,vref-mv = <2816>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <10>;
+	};
+	channel@4 {
+		reg = <4>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,vref-mv = <2816>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <10>;
+	};
+	channel@5 {
+		reg = <5>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,vref-mv = <2816>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <10>;
+	};
+};
+
+
+&adc1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	status = "okay";
+	/* Use adc1 channel 16 ~ 21 for 'adc_api' driver tests */
+	pinctrl-0 = <&adc0_chan16_gp62
+		     &adc0_chan17_gp63
+		     &adc0_chan18_gp67
+		     &adc0_chan19_gp70
+		     &adc0_chan20_gp22
+		     &adc0_chan21_gp23>;
+
+	pinctrl-names = "default";
+
+	channel@10 {
+		reg = <16>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,vref-mv = <3300>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <10>;
+	};
+	channel@11 {
+		reg = <17>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,vref-mv = <3300>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <10>;
+	};
+	channel@12 {
+		reg = <18>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,vref-mv = <3300>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <10>;
+	};
+	channel@13 {
+		reg = <19>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,vref-mv = <3300>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <10>;
+	};
+	channel@14 {
+		reg = <20>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,vref-mv = <3300>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <10>;
+	};
+	channel@15 {
+		reg = <21>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,vref-mv = <3300>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <10>;
+	};
+};
