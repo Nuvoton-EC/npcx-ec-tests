@@ -44,12 +44,8 @@
 			     &ext_flash_cs1_sl>;
 		pinctrl-names = "default"; */
 
-		/* UMA or DRA read mode selection */
+		/* Read, write mode selection */
 		read-mode  = "QUAD_IO";
-		/* Force read mode as direct read access (DRA) */
-		en-dra;
-
-		/* UMA write mode selection */
 		write-mode = "QUAD_OUTPUT";
 
 		/* NAND flash information */
@@ -57,6 +53,5 @@
 		page-num = <0x10000>;
 		block-size = <0x20000>; /* 1 block = 64 pages = 128K */
 		block-num = <0x400>;
-
 	};
 };
