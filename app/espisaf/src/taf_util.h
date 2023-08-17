@@ -11,15 +11,6 @@
 
 #define CAL_DATA_FROM_ADDR(n) ((uint8_t)(((n) * 3) + 2) + (n >> 11))
 
-enum {
-	ESPI_FLASH_TAF_REQ_READ  = 0,
-	ESPI_FLASH_TAF_REQ_WRITE = 1,
-	ESPI_FLASH_TAF_REQ_ERASE = 2,
-	ESPI_FLASH_TAF_REQ_RPMC_OP1  = 3,
-	ESPI_FLASH_TAF_REQ_RPMC_OP2  = 4,
-	ESPI_FLASH_TAF_REQ_UNKNOWN = 5,
-};
-
 struct taf_handle_data {
 	uint8_t  taf_type;
 	uint8_t  taf_tag;

@@ -34,13 +34,12 @@
 		pinctrl-0 = <&fiu_ext_io0_io1_clk_cs_gpa4_96_a2_a0
 			     &fiu_ext_quad_io2_io3_gp93_a7
 			     &ext_flash_tris_off
-				 &ext_flash_cs1_sl>;
+			     &ext_flash_cs1_sl>;
 		pinctrl-names = "default";
 
 		/* Read,Write mode */
 		read-mode  = "QUAD_IO";
 		write-mode = "QUAD_OUTPUT";
-		en-dra;
 
 		/* nand flash information */
 		page-size = <0x800>;    /* 1 page = 2048 bytes*/

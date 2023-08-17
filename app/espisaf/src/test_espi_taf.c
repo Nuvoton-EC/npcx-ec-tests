@@ -231,6 +231,7 @@ int taf_npcx_flash_write(const struct device *dev, struct taf_handle_data *info)
 	taf_data.tag = info->taf_tag;
 	taf_data.data = (uint8_t *)info->src;
 	pckt_taf.buf = (uint8_t *)&taf_data;
+
 	return espi_saf_flash_write(dev, &pckt_taf);
 }
 
@@ -267,40 +268,16 @@ int taf_npcx_flash_unsupport(const struct device *dev, struct taf_handle_data *i
 void espi_taf_handler(const struct device *dev, struct taf_handle_data *pckt,
 		      struct espi_event event)
 {
-	uint32_t taf_hdr;
-	uint32_t *data_ptr;
-	uint8_t  i, roundsize;
+	struct espi_taf_pckt *data_ptr;
 
-	data_ptr = (uint32_t *)event.evt_data;
+	data_ptr = (struct espi_taf_pckt *)event.evt_data;
 
-	taf_hdr = LE32(*data_ptr);
-	pckt->taf_type = MSB1(taf_hdr);
-	pckt->length = LSW(taf_hdr) & 0xFFF;
-	pckt->taf_tag = MSN(MSB2(taf_hdr));
-
-	if (pckt->length == 0 && (pckt->taf_type & 0xF) != ESPI_FLASH_TAF_REQ_ERASE) {
-		pckt->length = _4KB_;
-	}
-
-	/* Get address from FLASHRXBUF1 */
-	if (IS_ENABLED(CONFIG_ESPI_TAF_DIRECT_ACCESS)) {
-		pckt->address = LE32(*(data_ptr + 1));
-	} else {
-		pckt->address = LE32(*data_ptr);
-	}
+	pckt->taf_type = data_ptr->type;
+	pckt->length = data_ptr->len;
+	pckt->taf_tag = data_ptr->tag;
+	pckt->address = data_ptr->addr;
 	pckt->buf = tx_buf_data;
-
-	/* Get written data if eSPI TAF write */
-	if ((pckt->taf_type & 0xF) == ESPI_FLASH_TAF_REQ_WRITE) {
-		roundsize = DIV_CEILING(pckt->length, sizeof(uint32_t));
-		for (i = 0; i < roundsize; i++) {
-			if (IS_ENABLED(CONFIG_ESPI_TAF_DIRECT_ACCESS)) {
-				pckt->src[i] = *(data_ptr + (i + 2));
-			} else {
-				pckt->src[i] = *data_ptr;
-			}
-		}
-	}
+	memcpy(pckt->src, data_ptr->src, pckt->length);
 }
 
 /* eSPI TAF event handler */
@@ -333,12 +310,12 @@ int espi_init(void)
 
 	ret = espi_config(espi_dev, &cfg);
 	if (ret) {
-		LOG_ERR("Failed to configure eSPI slave channels:%x err: %d",
+		LOG_ERR("Failed to configure eSPI target channels:%x err: %d",
 			cfg.channel_caps, ret);
 		return ret;
 	}
 
-	LOG_INF("eSPI slave configured successfully!");
+	LOG_INF("eSPI target configured successfully!");
 	LOG_INF("eSPI test - callbacks initialization... ");
 
 	espi_init_callback(&espi_bus_cb, espi_reset_handler, ESPI_BUS_RESET);
