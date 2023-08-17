@@ -124,7 +124,13 @@ static int nand_flash_erase(const struct device *flash_dev, off_t addr, size_t s
 	size_t temp_size, read_size;
 	off_t read_addr;
 
+	if (size > SPI_NAND_BLOCK_NUM) {
+		LOG_ERR("erase block count exceed %d", SPI_NAND_BLOCK_NUM);
+		return -ENODEV;
+	}
+
 	size = size * SPI_NAND_BLOCK_SIZE;
+
 	/* Block erase */
 	rc = flash_erase(flash_dev, addr, size);
 	if (rc != 0) {
