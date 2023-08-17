@@ -20,7 +20,7 @@ static const struct device *const dma_dev = DEVICE_DT_GET(DT_NODELABEL(dma0));
 /* Main entry */
 void main(void)
 {
-	LOG_INF("--- CI20 Zephyr DMA Driver Validation ---");
+	LOG_INF("--- CI20 Zephyr DMA Driver Validation abc ---");
 
 	if (!device_is_ready(dma_dev)) {
 		LOG_ERR("dma device %s not ready", dma_dev->name);

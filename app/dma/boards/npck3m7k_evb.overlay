@@ -1,0 +1,26 @@
+/*
+ * Copyright (c) 2023 Nuvoton Technology Corporation.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/ {
+	chosen {
+		zephyr,shell-uart = &uart1;
+	};
+};
+
+
+&dma0 {
+	dma: dma@40011000 {
+		compatible = "nuvoton,npcx-dma";
+		reg = <0x40011000 0x1000>;
+
+		mapped-addr = <0x68000000>;
+
+		#dma-cells = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+	};
+};
