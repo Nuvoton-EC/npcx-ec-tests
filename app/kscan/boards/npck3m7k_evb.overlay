@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-&kscan0 {
+&kbd {
 	/* Demonstrate a 13 x 8 keyboard matrix on evb */
 	pinctrl-0 = <&ksi0_1_2_3_gpa0_a1_a2_a3 /* KSI0/1/2/3 PINA0/A1/A2/A3 */
 		     &ksi4_5_gpa4_a5 /* KSI4/5 PINA4/A5 */
