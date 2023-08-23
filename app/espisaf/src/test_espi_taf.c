@@ -25,6 +25,7 @@
 
 LOG_MODULE_REGISTER(espi_saf);
 
+#define ESPI_BASE_ADDR			0x4000A000
 #define ESPI_FREQ_20MHZ			20u
 #define ESPI_FREQ_25MHZ			25u
 
@@ -97,7 +98,7 @@ static const struct espi_saf_pr flash_protect_regions[2] = {
 	},
 };
 
-static const struct espi_saf_cfg taf_cfg_nand = {
+static const struct espi_saf_cfg taf_cfg_flash = {
 	.nflash_devices = 1U,
 };
 
@@ -463,7 +464,7 @@ static void espi_taf_thread_entry(void)
 	}
 	LOG_INF("eSPI sample completed err: %d", ret);
 
-	espi_saf_config(taf_dev, &taf_cfg_nand);
+	espi_saf_config(taf_dev, &taf_cfg_flash);
 	espi_saf_activate(taf_dev);
 
 	k_work_init(&taf_data.work, flash_handler);
@@ -579,11 +580,117 @@ int cmd_flash_protection(void)
 	return 0;
 }
 
+static int cmd_set_taf_flcapa(const struct shell *shell, size_t argc, char **argv)
+{
+	char *eptr;
+	uint32_t val = strtoul(argv[1], &eptr, 0);
+	struct espi_reg *const inst = (struct espi_reg *)ESPI_BASE_ADDR;
+
+	if (*eptr != '\0') {
+		shell_error(shell, "Invalid argument, '%s' is not an integer", argv[1]);
+		return -EINVAL;
+	}
+
+	if ((val < 0) || (val > 3)) {
+		shell_error(shell, "Invalid argument 0 - 3 (%s)", argv[1]);
+		return -EINVAL;
+	}
+
+	SET_FIELD(inst->FLASHCFG, NPCX_FLASHCFG_FLCAPA, val);
+
+	return 0;
+}
+
+static int cmd_check_taf_readsize(const struct shell *shell, size_t argc, char **argv)
+{
+	char *eptr;
+	uint32_t reqsize;
+	uint32_t val = strtoul(argv[1], &eptr, 0);
+	struct espi_reg *const inst = (struct espi_reg *)ESPI_BASE_ADDR;
+
+	if (*eptr != '\0') {
+		shell_error(shell, "Invalid argument, '%s' is not an integer", argv[1]);
+		return -EINVAL;
+	}
+
+	if ((val < 0) || (val > 7)) {
+		shell_error(shell, "Invalid argument 0 - 7 (%s)", argv[1]);
+		return -EINVAL;
+	}
+
+	reqsize = GET_FIELD(inst->FLASHCFG, NPCX_FLASHCFG_FLASHREQSIZE);
+	if (reqsize == val) {
+		LOG_INF("[PASS] FLASHREQSIZE test (%s)", argv[1]);
+		LOG_INF("[GO]");
+	} else {
+		LOG_INF("[FAIL] FLASHREQSIZE test (%x)", reqsize);
+	}
+
+	return 0;
+}
+
+static int cmd_check_taf_plsize(const struct shell *shell, size_t argc, char **argv)
+{
+	char *eptr;
+	uint32_t plsize;
+	uint32_t val = strtoul(argv[1], &eptr, 0);
+	struct espi_reg *const inst = (struct espi_reg *)ESPI_BASE_ADDR;
+
+	if (*eptr != '\0') {
+		shell_error(shell, "Invalid argument, '%s' is not an integer", argv[1]);
+		return -EINVAL;
+	}
+
+	if ((val < 1) || (val > 3)) {
+		shell_error(shell, "Invalid argument 0 - 3 (%s)", argv[1]);
+		return -EINVAL;
+	}
+
+	plsize = GET_FIELD(inst->FLASHCFG, NPCX_FLASHCFG_FLASHPLSIZE);
+	if (plsize == val) {
+		LOG_INF("[PASS] FLASHPLSIZE test (%s)", argv[1]);
+		LOG_INF("[GO]");
+	} else {
+		LOG_INF("[FAIL] FLASHPLSIZE test (%x)", plsize);
+	}
+
+	return 0;
+}
+
+static int cmd_set_taf_erasesize(const struct shell *shell, size_t argc, char **argv)
+{
+	char *eptr;
+	uint32_t val = strtoul(argv[1], &eptr, 0);
+	struct espi_reg *const inst = (struct espi_reg *)ESPI_BASE_ADDR;
+
+	if (*eptr != '\0') {
+		shell_error(shell, "Invalid argument, '%s' is not an integer", argv[1]);
+		return -EINVAL;
+	}
+
+	if ((val < 0) || (val > 7)) {
+		shell_error(shell, "Invalid argument 0 - 7 (%s)", argv[1]);
+		return -EINVAL;
+	}
+
+	SET_FIELD(inst->FLASHCFG, NPCX_FLASHCFG_TRGFLEBLKSIZE, BIT(val));
+
+	return 0;
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_espi,
 	SHELL_CMD_ARG(flash_erase, NULL, "espi_taf flash_erase <addr>",
 		flash_erase_cmd, 2, 0),
 	SHELL_CMD_ARG(flash_write, NULL, "espi_taf flash_write <addr>",
 		flash_write_cmd, 2, 0),
+	SHELL_CMD_ARG(set_flcapa, NULL, "espi_taf set_flcapa <val>, val = 0 - 3",
+		cmd_set_taf_flcapa, 2, 0),
+	SHELL_CMD_ARG(check_rdsize, NULL, "espi_taf check_rdsize <val>, val = 0 - 7",
+		cmd_check_taf_readsize, 2, 0),
+	SHELL_CMD_ARG(check_plsize, NULL, "espi_taf check_plsize <val>, val = 1 - 3",
+		cmd_check_taf_plsize, 2, 0),
+	SHELL_CMD_ARG(set_ersize, NULL, "espi_taf set_ersize <val>, val = 0 - 7",
+		cmd_set_taf_erasesize, 2, 0),
 	SHELL_CMD(set_pr, NULL, "espi_taf set_pr", cmd_flash_protection),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 );
