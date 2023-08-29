@@ -149,6 +149,44 @@ static void tach_get_sensor_value(const struct shell *shell, size_t argc, char *
 	LOG_INF("value = %d", value.val1);
 }
 
+#define SLEEP_DELAY_MS	1000
+#define SLEEP_DELAY	K_MSEC(SLEEP_DELAY_MS)
+static void tach_test(const struct shell *shell, size_t argc, char **argv)
+{
+	struct sensor_value value;
+	const struct device *dev = get_tach_device();
+
+	pwm_test_set_cycles(0, 64000, 60800, 0);
+
+	/* Dummy Read */
+	if (sensor_sample_fetch_chan(dev, SENSOR_CHAN_RPM)) {
+		LOG_INF("Sample fetch failed");
+	}
+	if (sensor_channel_get(dev, SENSOR_CHAN_RPM, &value)) {
+		LOG_INF("Get sensor value failed");
+	}
+
+	k_sleep(SLEEP_DELAY);
+
+
+	if (sensor_sample_fetch_chan(dev, SENSOR_CHAN_RPM)) {
+		LOG_INF("Sample fetch failed");
+	}
+
+	if (sensor_channel_get(dev, SENSOR_CHAN_RPM, &value)) {
+		LOG_INF("Get sensor value failed");
+	}
+	LOG_INF("value = %d", value.val1);
+
+	if ((value.val1 > 7410) && (value.val1 < 7869)) {
+		LOG_INF("[PASS] TACH test Ok");
+	} else {
+		LOG_INF("[FAIL] TACH test fail");
+	}
+
+	LOG_INF("[GO]\r\n");
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_tach,
 	SHELL_CMD_ARG(pwmlist, NULL, "tach pwmlist - show pwm status", pwm_cmd_list, 0, 0),
 	SHELL_CMD_ARG(pwmset, NULL, "tach pwmset <auto/chan> <period> <pulse> <flags>",
@@ -157,6 +195,8 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_tach,
 			pwm_cmd_get_cycles_per_sec, 2, 0),
 	SHELL_CMD_ARG(tachget, NULL, "tach tachget - RPM ",
 			tach_get_sensor_value, 0, 0),
+	SHELL_CMD_ARG(test, NULL, "tach test ",
+			tach_test, 0, 0),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 );
 SHELL_CMD_REGISTER(tach, &sub_tach, "Tach validation commands", NULL);
