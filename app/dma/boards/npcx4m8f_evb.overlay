@@ -52,15 +52,9 @@
 };
 
 &dma0 {
-	dma: dma@40011000 {
-		compatible = "nuvoton,npcx-dma";
-		reg = <0x40011000 0x1000>;
+	status = "okay";
+};
 
-		mapped-addr = <0x68000000>;
-
-		#dma-cells = <1>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		status = "okay";
-	};
+&dma1 {
+	status = "okay";
 };
