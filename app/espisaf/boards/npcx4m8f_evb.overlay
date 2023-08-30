@@ -11,7 +11,7 @@
 
 	aliases {
 		/* For samples/drivers/spi_flash */
-		flash-dev = &shd_flash0;
+		taf-flash = &shd_flash0;
 	};
 };
 
@@ -20,6 +20,7 @@
 	status = "okay";
 	en-direct-access-2dev;
 
+	/* NAND flash */
 	shd_flash0: w25n01kv@0 {
 		compatible ="nuvoton,npcx-fiu-nand";
 		size = <0x40000000>; /* 1G bits = 128 Mbytes */
@@ -56,15 +57,37 @@
 		block-num = <0x400>;
 
 	};
+
+	/* NOR flash */
+	shd_flash1: w25q128@1 {
+		compatible ="nuvoton,npcx-fiu-nor";
+		size = <0x8000000>; /* 134217728 bits = 16 Mbytes */
+		max-timeout = <86784>;
+		reg = <0>;
+		quad-enable-requirements = "S2B1v1";
+		status = "disabled";
+
+		/* quad spi bus configuration of nor flash device */
+		qspi-flags = <(NPCX_QSPI_SW_CS0 | NPCX_QSPI_SEC_FLASH_SL)>;
+		mapped-addr = <0x6C000000>;
+		pinctrl-0 = <&fiu_ext_io0_io1_clk_cs_gpa4_96_a2_a0
+			     &fiu_ext_quad_io2_io3_gp93_a7
+			     &ext_flash_tris_off
+			     &ext_flash_cs1_sl>;
+		pinctrl-names = "default";
+	};
 };
 
 &espi0 {
+	rx-plsize = <64>;
+	tx-plsize = <64>;
+
 	espi_taf: espitaf@4000a000 {
 		compatible = "nuvoton,npcx-espi-taf";
 		reg = <0x4000a000 0x2000>;
 
 		mapped-addr = <0x68000000>;
-		max-read-sz = "64B_DEF";
+		max-read-sz = "64B";
 		erase-sz = "SIZE_128KB";
 
 		#address-cells = <1>;

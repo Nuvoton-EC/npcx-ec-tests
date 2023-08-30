@@ -22,6 +22,10 @@
 #include <zephyr/drivers/flash.h>
 #include "taf_util.h"
 #endif
+#if defined(CONFIG_FLASH_NPCX_FIU_NAND_INIT)
+#include <zephyr/drivers/flash/npcx_flash_api_ex.h>
+#include <zephyr/../../drivers/flash/spi_nand.h>
+#endif
 
 LOG_MODULE_REGISTER(espi_saf);
 
@@ -56,7 +60,7 @@ LOG_MODULE_REGISTER(espi_saf);
 static const struct device *const espi_dev = DEVICE_DT_GET(DT_NODELABEL(espi0));
 #if defined(CONFIG_ESPI_SAF)
 static const struct device *const taf_dev = DEVICE_DT_GET(DT_NODELABEL(espi_taf));
-static const struct device *const spi_dev = DEVICE_DT_GET(DT_ALIAS(flash_dev));
+static const struct device *const spi_dev = DEVICE_DT_GET(DT_ALIAS(taf_flash));
 #endif
 
 static struct espi_callback espi_bus_cb;
@@ -207,11 +211,54 @@ static void periph_handler(const struct device *dev, struct espi_callback *cb,
 }
 
 #ifdef CONFIG_ESPI_FLASH_CHANNEL
+#if defined(CONFIG_FLASH_NPCX_FIU_NAND_INIT)
+/* Get look up table for NAND flash */
+static int nand_flash_get_lut(const struct device *flash_dev,
+			      struct nand_flash_lut *lut_ptr)
+{
+	return flash_ex_op(flash_dev, FLASH_NPCX_EX_OP_NAND_GET_BAD_BLOCK_LUT,
+			   (uintptr_t)NULL, lut_ptr);
+}
+
+/* Check access region is invalid or not */
+bool nand_invalid_check(uint32_t addr, uint32_t len)
+{
+	struct nand_flash_lut lut_table;
+	uint8_t bb_cnt;
+	uint16_t cnt;
+	uint32_t st_addr = addr;
+	uint32_t ed_addr = st_addr + len - 1;
+	uint32_t bk_start, bk_end;
+
+	nand_flash_get_lut(spi_dev, &lut_table);
+	bb_cnt = lut_table.bbt_count;
+
+	if (bb_cnt > 0 && bb_cnt < 20) {
+		for (cnt = 0; cnt < bb_cnt; cnt++) {
+			bk_start = _128KB_ * lut_table.bbt_list[cnt];
+			bk_end = bk_start + _128KB_ - 1;
+			if (bk_start <= ed_addr && st_addr <= bk_end)
+				return true;
+		}
+		return false;
+	} else {
+		return false;
+	}
+}
+#endif /* CONFIG_FLASH_NPCX_FIU_NAND_INIT */
+
 #if defined(CONFIG_ESPI_SAF)
 int taf_npcx_flash_read(const struct device *dev, struct taf_handle_data *info)
 {
 	struct espi_taf_npcx_pckt taf_data;
 	struct espi_saf_packet pckt_taf;
+
+#if defined(CONFIG_FLASH_NPCX_FIU_NAND_INIT)
+	if (nand_invalid_check(info->address, info->length)) {
+		LOG_ERR("Access NAND invalid region");
+		return -EINVAL;
+	}
+#endif
 
 	pckt_taf.flash_addr = info->address;
 	pckt_taf.len = info->length;
@@ -227,6 +274,13 @@ int taf_npcx_flash_write(const struct device *dev, struct taf_handle_data *info)
 	struct espi_taf_npcx_pckt taf_data;
 	struct espi_saf_packet pckt_taf;
 
+#if defined(CONFIG_FLASH_NPCX_FIU_NAND_INIT)
+	if (nand_invalid_check(info->address, info->length)) {
+		LOG_ERR("Access NAND flash invalid region");
+		return -EINVAL;
+	}
+#endif
+
 	pckt_taf.flash_addr = info->address;
 	pckt_taf.len = info->length;
 	taf_data.tag = info->taf_tag;
@@ -240,6 +294,15 @@ int taf_npcx_flash_erase(const struct device *dev, struct taf_handle_data *info)
 {
 	struct espi_taf_npcx_pckt taf_data;
 	struct espi_saf_packet pckt_taf;
+
+#if defined(CONFIG_FLASH_NPCX_FIU_NAND_INIT)
+	int erase_blk[4] = {_4KB_, _32KB_, _64KB_, _128KB_};
+
+	if (nand_invalid_check(info->address, erase_blk[info->length])) {
+		LOG_ERR("Access invalid NAND flash region");
+		return -EINVAL;
+	}
+#endif
 
 	pckt_taf.flash_addr = info->address;
 	pckt_taf.len = info->length;
