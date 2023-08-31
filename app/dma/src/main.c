@@ -14,5 +14,6 @@ void test_dma_init();
 int main(void)
 {
 	test_dma_init();
+
 	return 0;
 }

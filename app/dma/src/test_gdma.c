@@ -12,46 +12,89 @@
 #include <zephyr/shell/shell.h>
 #include <zephyr/random/rand32.h>
 #include "../../zephyr/drivers/dma/dma_npcx.h"
-#include <zephyr/sys/printk.h>
-#include <zephyr/console/console.h>
 
 #define LOG_LEVEL LOG_LEVEL_INF
 #include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(gdma);
 
-#define MAX_ARGUMNETS 3
-#define MAX_ARGU_SIZE 10
+#define MAX_ARGUMNETS	3
+#define MAX_ARGU_SIZE	10
+#define TRANSFER_SIZE	1024
 
-#define TASK_STACK_SIZE 1024
-#define PRIORITY 7
+#define TASK_STACK_SIZE	1024
+#define PRIORITY	7
+
+#define DMA0_CTLER			DT_NODELABEL(dma0)
+#define DMA1_CTLER			DT_NODELABEL(dma1)
+
 static uint8_t arguments[MAX_ARGUMNETS][MAX_ARGU_SIZE];
 struct k_event dma_event;
 static struct k_thread temp_id;
+static uint32_t GDMAMemPool[MOVE_SIZE + 4] __aligned(16);
+
+static uint8_t src[TRANSFER_SIZE];
+static uint8_t dst[TRANSFER_SIZE] __aligned(16);
+
+
 K_THREAD_STACK_DEFINE(temp_stack, TASK_STACK_SIZE);
 
-static const struct device *const dma_dev = DEVICE_DT_GET(DT_NODELABEL(dma0));
+
+/* Get device from device tree */
+static const struct device *const dma_devices[] = {
+	DEVICE_DT_GET(DMA0_CTLER),
+	DEVICE_DT_GET(DMA1_CTLER),
+};
+
+#define NUM_DMA_DEVICE ARRAY_SIZE(dma_devices)
+#define cal_flash_type_num(ADDR)	ARRAY_SIZE(ADDR)
+#define MRAM	((const struct dma_npcx_config *)dma_devices[0]->config)->buttom_mram
+
+/*
+ * Validation Variable Setting
+ */
+
+static uint8_t testSetting;
+static uint32_t ch, ram;
+
+static void rand_setting_init(uint32_t mask)
+{
+	testSetting = sys_rand32_get() & mask;
+	ch = testSetting & 0x01;
+	ram = (testSetting >> 1) & 0x01;
+}
+static uint8_t fiu_ctl, dma_FIUMode, dma_FIUBurst;
+static void rand_setting_init_fiu(uint32_t mask)
+{
+	fiu_ctl = sys_rand32_get() & mask;
+	dma_FIUMode = fiu_ctl & 0x03;
+	dma_FIUBurst = (fiu_ctl >> 2) & 0x01;
+}
 
 /*
  * Finished Function
  */
 
-static void npcx_power_down2(void)
+static void npcx_power_down_2(void)
 {
 	uint32_t val1 = 0x11223344, val2 = 0x9ABCDEF0;
 
-	for (uint8_t ch = 0; ch < MAX_DMA_CHANNELS; ch++) {
-		int *res = npcx_power_down_gpd(dma_dev, ch, val1, val2);
+	for (int i = 0; i < NUM_DMA_DEVICE; i++) {
+		for (uint8_t ch = 0; ch < MAX_DMA_CHANNELS; ch++) {
+			int *res = npcx_power_down_gpd(dma_devices[i], ch, val1, val2);
 
-		if (res[0]) {
-			LOG_INF("[FAIL][GDMA]: GPD%d power down", ch);
-		} else {
-			LOG_INF("[PASS][GDMA]: GPD%d power down", ch);
-		}
-		if (res[1]) {
-			LOG_INF("[PASS][GDMA]: GPD%d still run when GDP%d power down", ch ^ 1, ch);
-		} else {
-			LOG_INF("[FAIL][GDMA]: GPD%d still run when GDP%d power down", ch ^ 1, ch);
+			if (res[0]) {
+				LOG_INF("[FAIL][GDMA%d]: GPD%d power down", i, ch);
+			} else {
+				LOG_INF("[PASS][GDMA%d]: GPD%d power down", i, ch);
+			}
+			if (res[1]) {
+				LOG_INF("[PASS][GDMA%d]: GPD%d still run
+						when GDP%d power down", i, ch ^ 1, ch);
+			} else {
+				LOG_INF("[FAIL][GDMA%d]: GPD%d still run
+						when GDP%d power down", i, ch ^ 1, ch);
+			}
 		}
 	}
 }
@@ -80,7 +123,7 @@ static inline void dma1_isr_callback(uint8_t error)
 
 static GDMA_CALLBACK dma_isr_callback[2] = {dma0_isr_callback, dma1_isr_callback};
 
-static void dma_set_rand_para(uint8_t channel, uint32_t *src_addr, uint32_t *dst_addr)
+static void dma_set_rand_para(uint8_t channel, uint8_t *src_addr, uint8_t *dst_addr)
 {
 
 	uint8_t dma_ctf;
@@ -95,30 +138,36 @@ static void dma_set_rand_para(uint8_t channel, uint32_t *src_addr, uint32_t *dst
 	dma_ctrl.safix = GDMA_ADDR_CHANGE;
 	dma_ctrl.dafix = GDMA_ADDR_CHANGE;
 
-	dma_ctrl.cnt = DMA_Calculate_Cnt(MOVE_SIZE, dma_ctrl.tws_bme);
+	dma_ctrl.cnt = dma_calculate_cnt(MOVE_SIZE, dma_ctrl.tws_bme);
 	dma_ctrl.src = dma_ctrl.sadir ? (uint32_t)(src_addr + MOVE_SIZE) : (uint32_t)src_addr;
 	dma_ctrl.dst = dma_ctrl.dadir ? (uint32_t)(dst_addr + MOVE_SIZE) : (uint32_t)dst_addr;
 
 	dma_ctrl.callback = dma_isr_callback[channel];
 
-	DMA_Set_Controller(dma_dev, channel, dma_ctrl, dma_isr_callback);
+	dma_set_controller(dma_devices[0], channel, dma_ctrl, dma_isr_callback);
 
 }
 
-static uint32_t GDMAMemPool[MOVE_SIZE + 4] __aligned(16);
+static void dma_read_flash_val(void)
+{
+	memset((uint8_t *)MRAM, 0, MOVE_SIZE + 4);
+	memset(GDMAMemPool, 0, MOVE_SIZE + 4);
+
+	rand_setting_init(0x3);
+	rand_setting_init_fiu(0xf);
+}
+
+/*
+ * Under checking Function
+ */
 
 static void power_down_test(void)
 {
-	uint32_t *src, *dst;
-
-	src = ((const struct dma_npcx_config *)dma_dev->config)->buttom_mram;
-	dst = GDMAMemPool;
-
 	memset(src, 0, sizeof(src));
 	memset(dst, 0, sizeof(dst));
 
 	dma_set_rand_para(0, src, dst);
-	dma_start_softreq(dma_dev, 0);
+	dma_start_softreq(dma_devices[0], 0);
 
 	isr_flag = 0;
 	/* todo */
@@ -132,7 +181,7 @@ static void power_down_test(void)
 
 	*(uint8_t *)0x4000D00A = 0x80;
 	dma_set_rand_para(0, src, dst);
-	dma_start_softreq(dma_dev, 0);
+	dma_start_softreq(dma_devices[0], 0);
 
 	isr_flag = 0;
 	while ((BIT(NPCX_DMACTL_TC)) == 0) {
@@ -149,10 +198,10 @@ static void power_down_test(void)
 	*(uint8_t *)0x4000D00A = 0x00;
 }
 
-
-/*
- * Under checking Function
- */
+static void dma_npcx_api_test(void)
+{
+	dma_start(dma_devices[0], 0);
+}
 
 
 static void dma_validation_func(void *dummy1, void *dummy2, void *dummy3)
@@ -165,15 +214,20 @@ static void dma_validation_func(void *dummy1, void *dummy2, void *dummy3)
 		switch (events)
 		{
 		case 0x001: /* no argu */
+			dma_npcx_api_test();
 			break;
 		case 0x002:
 			if (!strcmp("power_down_gpd", arguments[0])) {
-				LOG_INF("DMA power down test");
-				npcx_power_down2();
+				LOG_INF("DMA power down gpd test");
+				npcx_power_down_2();
 			}
 			if (!strcmp("power_down", arguments[0])) {
-				LOG_INF("DMA power down test");
+				LOG_INF("DMA power down interrupt test");
 				power_down_test();
+			}
+			if (!strcmp("read_flash", arguments[0])) {
+				LOG_INF("DMA read flash");
+				dma_read_flash_val();
 			}
 			break;
 		default:
@@ -196,19 +250,23 @@ int dma_command(const struct shell *shell, size_t argc, char **argv)
 	return 0;
 }
 
+
 void test_dma_init(void)
 {
 	LOG_INF("--- CI20 Zephyr DMA Driver Validation abc ---");
-	if (!device_is_ready(dma_dev)) {
-		LOG_INF("[FAIL]: DMA not ready");
-		return;
+	for (int i = 0 ; i < NUM_DMA_DEVICE; i++) {
+		if (!device_is_ready(dma_devices[i])) {
+			LOG_ERR("dma device %s is not ready", dma_devices[i]->name);
+			return;
+		}
+		LOG_INF("dma device [%d]:%s is ready", i, dma_devices[i]->name);
 	}
-	LOG_INF("[PASS]: DMA ready");
 
 	k_thread_create(&temp_id, temp_stack, TASK_STACK_SIZE, dma_validation_func,
 		NULL, NULL, NULL, PRIORITY, K_INHERIT_PERMS, K_FOREVER);
 	k_thread_name_set(&temp_id, "DMA Validation");
 	k_thread_start(&temp_id);
+	k_sleep(K_FOREVER);
 }
 
 SHELL_STATIC_SUBCMD_SET_CREATE(
