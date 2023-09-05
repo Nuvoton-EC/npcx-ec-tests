@@ -102,8 +102,11 @@ static const struct espi_saf_pr flash_protect_regions[2] = {
 	},
 };
 
-static const struct espi_saf_cfg taf_cfg_flash = {
+static struct espi_saf_cfg taf_cfg_flash = {
 	.nflash_devices = 1U,
+	.hwcfg = {
+		.mode = ESPI_TAF_AUTO_MODE,
+	},
 };
 
 static const struct espi_saf_protection taf_pr_flash = {
@@ -741,6 +744,23 @@ static int cmd_set_taf_erasesize(const struct shell *shell, size_t argc, char **
 	return 0;
 }
 
+static int cmd_set_taf_mode(const struct shell *shell, size_t argc, char **argv)
+{
+	char *eptr;
+	uint32_t val = strtoul(argv[1], &eptr, 0);
+
+	if ((val < 0) || (val > 7)) {
+		shell_error(shell, "Invalid argument 0 - 1 (%s)", argv[1]);
+		return -EINVAL;
+	}
+
+	taf_cfg_flash.hwcfg.mode = val;
+
+	espi_saf_config(taf_dev, &taf_cfg_flash);
+
+	return 0;
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_espi,
 	SHELL_CMD_ARG(flash_erase, NULL, "espi_taf flash_erase <addr>",
 		flash_erase_cmd, 2, 0),
@@ -754,6 +774,8 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_espi,
 		cmd_check_taf_plsize, 2, 0),
 	SHELL_CMD_ARG(set_ersize, NULL, "espi_taf set_ersize <val>, val = 0 - 7",
 		cmd_set_taf_erasesize, 2, 0),
+	SHELL_CMD_ARG(set_taf_mode, NULL, "espi_taf set_taf_mode <val>, val = 0 - 1",
+		cmd_set_taf_mode, 2, 0),
 	SHELL_CMD(set_pr, NULL, "espi_taf set_pr", cmd_flash_protection),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 );
