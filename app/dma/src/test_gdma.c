@@ -56,15 +56,15 @@ static const struct device *const dma_devices[] = {
 
 /* isr event */
 volatile uint32_t usr_flag;
-static void dma_callback_test(const struct device *dma_dev, void *arg,
-				uint32_t id, int status)
+
+static void dma_callback_test(const struct device *dev, void *user_data,
+			       uint32_t channel, int status)
 {
 	if (status >= 0) {
 		LOG_INF("DMA transfer done\n");
 	} else {
 		LOG_INF("DMA transfer met an error\n");
 	}
-
 }
 
 /*
@@ -163,7 +163,7 @@ static void dma_set_rand_para(uint8_t channel, uint8_t *src_addr, uint8_t *dst_a
 	dma_ctrl.src = dma_ctrl.sadir ? (uint32_t)(src_addr + MOVE_SIZE) : (uint32_t)src_addr;
 	dma_ctrl.dst = dma_ctrl.dadir ? (uint32_t)(dst_addr + MOVE_SIZE) : (uint32_t)dst_addr;
 
-	dma_set_controller(dma_devices[0], channel, dma_ctrl);
+	dma_set_controller(dma_devices[0], channel, &dma_ctrl);
 
 }
 
@@ -218,11 +218,12 @@ static void power_down_test(void)
 }
 
 /* base on chan_blen_transfer */
-static int dma_npcx_api_test(void)
+static void dma_npcx_api_test(void)
 {
 	/* memory to memory */
 	struct dma_config dma_cfg = { 0 };
 	struct dma_block_config dma_block_cfg = { 0 };
+	const struct device *dev = dma_devices[0];
 	uint8_t blen = 8;
 
 	dma_cfg.channel_direction = MEMORY_TO_MEMORY;
@@ -237,36 +238,35 @@ static int dma_npcx_api_test(void)
 	dma_cfg.head_block = &dma_block_cfg;
 
 	LOG_INF("Preparing DMA Controller: Name=%s, Chan_ID=%u, BURST_LEN=%u\n",
-		 dma_devices[0]->name, 0, blen >> 3);
+		 dev->name, 0, blen >> 3);
 
 	LOG_INF("Starting the transfer\n");
 
-	(void)memset(rx_data, 0, sizeof(rx_data));
+	memset(rx_data, 0, sizeof(rx_data));
 	dma_block_cfg.block_size = sizeof(tx_data);
 
 	dma_block_cfg.source_address = (uint32_t)tx_data;
 	dma_block_cfg.dest_address = (uint32_t)rx_data;
 
-	if (dma_config(dma_devices[0], 0, &dma_cfg)) {
+	if (dma_config(dev, 0, &dma_cfg)) {
 		LOG_INF("ERROR: transfer\n");
-		return 1;
+		return;
 	}
-	if (dma_start(dma_devices[0], 0)) {
+	if (dma_start(dev, 0)) {
 		LOG_INF("ERROR: transfer\n");
-		return 1;
+		return;
 	}
 
 	k_sleep(K_MSEC(2000));
 
 	LOG_INF("%s\n", rx_data);
 	if (strcmp(tx_data, rx_data) != 0) {
-		LOG_INF("failed");
-		return 1;
+		LOG_INF("[FAIL] Data transfer");
+		return;
 	}
-
-	return 0;
+	LOG_INF("[PASS] Data transfer");
 }
-
+const struct shell *sh_ptr;
 static void dma_validation_func(void *dummy1, void *dummy2, void *dummy3)
 {
 	uint32_t events;
@@ -274,24 +274,27 @@ static void dma_validation_func(void *dummy1, void *dummy2, void *dummy3)
 
 	while (true) {
 		events = k_event_wait(&dma_event, 0xFFF, true, K_FOREVER);
-		switch (events)
-		{
+		switch (events) {
 		case 0x001: /* no argu */
-			if (dma_npcx_api_test() == 0)
-				LOG_INF("[PASS] Data transfer ok");
+			LOG_INF("api test");
+			dma_npcx_api_test();
 			break;
 		case 0x002:
-			if (!strcmp("power_down_gpd", arguments[0])) {
+			if (!strcmp("gpd", arguments[0])) {
 				LOG_INF("DMA power down gpd test");
 				npcx_power_down_2();
 			}
-			if (!strcmp("power_down", arguments[0])) {
+			if (!strcmp("gps", arguments[0])) {
 				LOG_INF("DMA power down interrupt test");
 				power_down_test();
 			}
-			if (!strcmp("read_flash", arguments[0])) {
+			if (!strcmp("read", arguments[0])) {
 				LOG_INF("DMA read flash");
 				dma_read_flash_val();
+			}
+			if (!strcmp("ram", arguments[0])) {
+				LOG_INF("RAM to RAM data transfer");
+				dma_npcx_api_test();
 			}
 			break;
 		default:
@@ -330,7 +333,6 @@ void test_dma_init(void)
 		NULL, NULL, NULL, PRIORITY, K_INHERIT_PERMS, K_FOREVER);
 	k_thread_name_set(&temp_id, "DMA Validation");
 	k_thread_start(&temp_id);
-	k_sleep(K_FOREVER);
 }
 
 SHELL_STATIC_SUBCMD_SET_CREATE(
@@ -340,4 +342,4 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 	SHELL_CMD_ARG(cfg, NULL, "dma cfg arg0 arg1 arg2", dma_command, 4, 0),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 );
-SHELL_CMD_REGISTER(dma, &sub_dma, "nuvoton adc validation", NULL);
+SHELL_CMD_REGISTER(dma, &sub_dma, "nuvoton dma validation", NULL);
