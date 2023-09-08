@@ -57,14 +57,18 @@ static const struct device *const dma_devices[] = {
 /* isr event */
 volatile uint32_t usr_flag;
 
-static void dma_callback_test(const struct device *dev, void *user_data,
-			       uint32_t channel, int status)
+static void dma_callback_test(const struct device *dma_dev, void *arg,
+			      uint32_t id, int status)
 {
-	if (status >= 0) {
-		LOG_INF("DMA transfer done\n");
-	} else {
-		LOG_INF("DMA transfer met an error\n");
+	LOG_INF("callback");
+
+	if (usr_flag) {
+		return;
 	}
+	if (status < 0) {
+		LOG_INF("DMA could not proceed, an error occurred\n");
+	}
+	LOG_INF("done");
 }
 
 /*
@@ -208,7 +212,6 @@ static void power_down_test(void)
 			break;
 		}
 	}
-
 	if (isr_flag == 0) {
 		LOG_INF("[PASS][GDMA]:no interrupt after power down");
 	} else {
@@ -220,17 +223,19 @@ static void power_down_test(void)
 /* base on chan_blen_transfer */
 static void dma_npcx_api_test(void)
 {
-	/* memory to memory */
+	/* simple memory to memory example*/
+	uint8_t ch0 = 0;
 	struct dma_config dma_cfg = { 0 };
 	struct dma_block_config dma_block_cfg = { 0 };
-	const struct device *dev = dma_devices[0];
-	uint8_t blen = 8;
+	const struct device *dev = dma_devices[ch0];
+	uint8_t blen = 16;
 
 	dma_cfg.channel_direction = MEMORY_TO_MEMORY;
 	dma_cfg.source_data_size = 1U;
 	dma_cfg.dest_data_size = 1U;
 	dma_cfg.source_burst_length = blen;
 	dma_cfg.dest_burst_length = blen;
+	dma_cfg.user_data = NULL;
 	dma_cfg.dma_callback = dma_callback_test;
 	dma_cfg.complete_callback_en = 0U;
 	dma_cfg.error_callback_en = 1U;
@@ -238,7 +243,7 @@ static void dma_npcx_api_test(void)
 	dma_cfg.head_block = &dma_block_cfg;
 
 	LOG_INF("Preparing DMA Controller: Name=%s, Chan_ID=%u, BURST_LEN=%u\n",
-		 dev->name, 0, blen >> 3);
+		 dev->name, ch0, 8 >> 3);
 
 	LOG_INF("Starting the transfer\n");
 
@@ -248,25 +253,25 @@ static void dma_npcx_api_test(void)
 	dma_block_cfg.source_address = (uint32_t)tx_data;
 	dma_block_cfg.dest_address = (uint32_t)rx_data;
 
-	if (dma_config(dev, 0, &dma_cfg)) {
-		LOG_INF("ERROR: transfer\n");
-		return;
-	}
-	if (dma_start(dev, 0)) {
-		LOG_INF("ERROR: transfer\n");
+	if (dma_config(dev, ch0, &dma_cfg)) {
+		LOG_INF("ERROR: configure\n");
 		return;
 	}
 
-	k_sleep(K_MSEC(2000));
+	if (dma_start(dev, ch0)) {
+		LOG_INF("ERROR: transfer\n");
+		return;
+	}
 
 	LOG_INF("%s\n", rx_data);
 	if (strcmp(tx_data, rx_data) != 0) {
 		LOG_INF("[FAIL] Data transfer");
 		return;
+	} else {
+		LOG_INF("[PASS] Data transfer");
 	}
-	LOG_INF("[PASS] Data transfer");
 }
-const struct shell *sh_ptr;
+
 static void dma_validation_func(void *dummy1, void *dummy2, void *dummy3)
 {
 	uint32_t events;
