@@ -5,9 +5,9 @@ echo -e "Usage : simply choose the board and app\n"
 
 # Display the available board options
 echo "Choose board:"
-echo "1. x4 "     # npcx_v2 cpu and fiu
-echo "2. x7 "    # using npcx cpu and fiu
-echo "3. x9 "     # using npcx cpu and fiu
+echo "1. x4 "       # npcx_v2 cpu and fiu
+echo "2. x7 "       # using npcx cpu and fiu
+echo "3. x9 "       # using npcx cpu and fiu
 echo "4. k3 "
 
 read -p "Enter your choice (1/2/3/4): " board_choice

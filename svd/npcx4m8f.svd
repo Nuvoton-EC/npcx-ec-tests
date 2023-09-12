@@ -6989,7 +6989,7 @@
 						</field>
 						<field>
 							<name>SADIR</name>
-							<bitRange>[6:5]</bitRange>
+							<bitRange>[5:5]</bitRange>
 							<access>read-write</access>
 						</field>
 						<field>

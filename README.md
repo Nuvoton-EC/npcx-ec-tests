@@ -78,3 +78,15 @@ Once you have built the application, run the following command to flash it:
 ```shell
 west flash
 ```
+
+#### The shortcut for Building and running
+
+1. source env
+```shell
+source ../.venv/bin/activate
+```
+2. use `west_flash_app.sh` for build and flash
+```shell
+./west_flash_app.sh
+```
+choose target board and your target app.
