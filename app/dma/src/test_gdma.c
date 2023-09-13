@@ -44,7 +44,8 @@ static const struct device *const dma_devices[] = {
 #define NUM_DMA_DEVICE ARRAY_SIZE(dma_devices)
 #define cal_flash_type_num(ADDR)	ARRAY_SIZE(ADDR)
 #define MRAM(inst)	((const struct dma_npcx_config *)dma_devices[inst]->config)->buttom_mram
-#define INT_FLASH_BASE1_ADDR	0x60000000 /* private flash */
+#define INT_FLASH_BASE1_ADDR	0x60000000	/* private flash */
+#define FLASH_BASE1_ADDR		0x68000000	/* shared flash */
 
 /* mem to mem config */
 static uint32_t GDMAMemPool[MOVE_SIZE + 4] __aligned(16);
@@ -55,6 +56,14 @@ static uint32_t dst[TRANSFER_SIZE] __aligned(16);
 static const char tx_data[] = "It is harder to be kind than to be wise........";
 static char rx_data[48] = { 0 };
 
+struct dma_config dma_cfg = { 0 };
+struct dma_block_config dma_block_cfg = { 0 };
+
+/* flash to mem config */
+static uint32_t gdma_test_flash_src[] = {
+	INT_FLASH_BASE1_ADDR,	/* internal flash */
+	FLASH_BASE1_ADDR,		/* external flash */
+};
 
 /* isr event */
 volatile uint32_t usr_flag;
@@ -63,11 +72,18 @@ static void dma_callback_test(const struct device *dma_dev, void *arg,
 				uint32_t id, int status)
 {
 	struct dma_reg *const inst = HAL_INSTANCE(dma_dev, id);
+	uint8_t isr = inst->CONTROL & BIT(NPCX_DMACTL_TC);
+
 	if (status < 0) {
 		LOG_INF("DMA could not proceed, an error occurred\n");
 	}
 	LOG_INF("Data transfer completed");
-	inst->CONTROL &= ~BIT(NPCX_DMACTL_TC);
+	LOG_INF("%s: status is %02X\n", __func__, isr);
+	if (gdma_data_check(dma_dev, id)) {
+		LOG_INF("[FAIL]");
+	} else {
+		LOG_INF("[PASS]");
+	}
 }
 
 /*
@@ -90,8 +106,6 @@ static void rand_setting_init_fiu(uint32_t mask)
 	dma_FIUMode = fiu_ctl & 0x03;
 	dma_FIUBurst = (fiu_ctl >> 2) & 0x01;
 }
-
-
 
 /*
  * Finished Function
@@ -171,14 +185,7 @@ static void dma_set_rand_para(uint8_t channel, uint32_t *src_addr, uint32_t *dst
 
 }
 
-static void dma_read_flash_val(void)
-{
-	memset((uint8_t *)MRAM(0), 0, MOVE_SIZE + 4);
-	memset(GDMAMemPool, 0, MOVE_SIZE + 4);
 
-	rand_setting_init(0x3);
-	rand_setting_init_fiu(0xf);
-}
 
 /*
  * Under checking Function
@@ -220,7 +227,7 @@ static void power_down_test(void)
 	*(uint8_t *)0x4000D00A = 0x00;
 }
 
-uint32_t gdma_data_check(const struct device *dev, const uint8_t channel)
+static uint32_t gdma_data_check(const struct device *dev, const uint8_t channel)
 {
 	struct dma_reg *const inst = HAL_INSTANCE(dev, channel);
 
@@ -332,40 +339,20 @@ uint32_t gdma_data_check(const struct device *dev, const uint8_t channel)
 }
 
 /* base on chan_blen_transfer */
-static void dma_npcx_api_test(uint8_t opt)
+static void dma_npcx_api_example(void)
 {
-	/* simple memory to memory example*/
+	/* simple memory(char) to memory(char) example*/
 	uint8_t dev_num = 0;
 	uint8_t ch = 0;
-	struct dma_config dma_cfg = { 0 };
-	struct dma_block_config dma_block_cfg = { 0 };
 	const struct device *dev = dma_devices[dev_num];
 
-	switch (opt) {
-	case '1':
-		/* char to char */
-		dma_cfg.channel_direction = MEMORY_TO_MEMORY;
-		memset(rx_data, 0, sizeof(rx_data));
-		dma_block_cfg.block_size = sizeof(tx_data);
-		dma_block_cfg.source_address = (uint32_t)tx_data;
-		dma_block_cfg.dest_address = (uint32_t)rx_data;
-		dma_cfg.dma_callback = dma_callback_test;
-		break;
-	case '2':
-		dma_cfg.channel_direction = MEMORY_TO_MEMORY;
-		memset((uint8_t *) GDMAMemPool, 0, MOVE_SIZE + 4);
-		memset((uint8_t *) MRAM(dev_num), 0, MOVE_SIZE + 4);
-		dma_block_cfg.block_size = sizeof(MOVE_SIZE + 4);
-		dma_block_cfg.source_address = (uint32_t)MRAM(dev_num);
-		dma_block_cfg.dest_address = (uint32_t)GDMAMemPool;
-		for (uint32_t i = 0; i < MOVE_SIZE; i++) {
-			*(uint8_t *)(MRAM(dev_num) + i) = *(uint8_t *)(INT_FLASH_BASE1_ADDR + i);
-		}
-		dma_cfg.dma_callback = dma_callback_test;
-		break;
-	default:
-		break;
-	}
+	dma_cfg.channel_direction = MEMORY_TO_MEMORY;
+	memset(rx_data, 0, sizeof(rx_data));
+	dma_block_cfg.block_size = sizeof(tx_data);
+	dma_block_cfg.source_address = (uint32_t)tx_data;
+	dma_block_cfg.dest_address = (uint32_t)rx_data;
+	dma_cfg.dma_callback = dma_callback_test;
+
 	dma_cfg.head_block = &dma_block_cfg;
 
 	LOG_INF("Preparing DMA Controller: Name=%s, Chan_ID=%u", dev->name, ch);
@@ -378,35 +365,101 @@ static void dma_npcx_api_test(uint8_t opt)
 		LOG_INF("ERROR: transfer\n");
 		return;
 	}
-	switch (opt) {
-	case '1':
-		LOG_INF("%s\n", rx_data);
-		if (strcmp(tx_data, rx_data) != 0) {
-			LOG_INF("[FAIL] Data transfer");
-			return;
-		} else {
-			LOG_INF("[PASS] Data transfer");
-		}
-		break;
-	case '2':
-		LOG_INF("GDMA data check");
-		break;
-	default:
-		break;
+	LOG_INF("%s\n", rx_data);
+	if (strcmp(tx_data, rx_data) != 0) {
+		LOG_INF("[FAIL] Data transfer");
+		return;
+	} else {
+		LOG_INF("[PASS] Data transfer");
 	}
-	gdma_data_check(dev, ch);
+}
+
+static void read_flash(char *src, char *dst)
+{
+	uint8_t dev_num = 0;
+	uint8_t opt = atoi(src);
+	uint8_t ram = atoi(dst);
+	const struct device *dev = dma_devices[dev_num];
+
+	memset((uint8_t *)MRAM(dev_num), 0, MOVE_SIZE + 4);
+	memset((uint8_t *) GDMAMemPool, 0, MOVE_SIZE + 4);
+	uint32_t src1, dst1;
+
+	src1 = (uint32_t)(gdma_test_flash_src[opt]);
+	dst1 = ram ?  (uint32_t)MRAM(dev_num) : (uint32_t)GDMAMemPool;
+
+	dma_cfg.channel_direction = MEMORY_TO_MEMORY;
+	dma_block_cfg.source_address = src1;
+	dma_block_cfg.dest_address = dst1;
+	dma_block_cfg.block_size = MOVE_SIZE + 4;
+
+	dma_cfg.dma_callback = dma_callback_test;
+
+	dma_cfg.head_block = &dma_block_cfg;
+
+	if (dma_config(dev, ch, &dma_cfg)) {
+		LOG_INF("ERROR: configure\n");
+		return;
+	}
+	if (dma_start(dev, ch)) {
+		LOG_INF("ERROR: transfer\n");
+		return;
+	}
+}
+
+static void move_data_ram_to_ram(char *ram, char *ch_set)
+{
+	uint8_t dev_num = 0;
+	uint8_t ram_set, ch;
+
+	ram_set = atoi(ram);
+	ch = atoi(ch_set);
+	const struct device *dev = dma_devices[dev_num];
+
+	dma_cfg.channel_direction = MEMORY_TO_MEMORY;
+	memset((uint8_t *) GDMAMemPool, 0, MOVE_SIZE + 4);
+	memset((uint8_t *) MRAM(dev_num), 0, MOVE_SIZE + 4);
+	LOG_INF("test");
+	dma_block_cfg.block_size = MOVE_SIZE + 4;
+	if (ram_set) {
+		dma_block_cfg.source_address = (uint32_t)MRAM(dev_num);
+		dma_block_cfg.dest_address = (uint32_t)GDMAMemPool;
+		for (uint32_t i = 0; i < MOVE_SIZE; i++) {
+			*(uint8_t *)(MRAM(dev_num) + i) = *(uint8_t *)(INT_FLASH_BASE1_ADDR + i);
+		}
+	} else {
+		dma_block_cfg.source_address = (uint32_t)GDMAMemPool;
+		dma_block_cfg.dest_address = (uint32_t)MRAM(dev_num);
+		for (uint32_t i = 0; i < MOVE_SIZE; i++) {
+			*(uint8_t *)(dma_block_cfg.source_address + i) =
+			*(uint8_t *)(INT_FLASH_BASE1_ADDR + i);
+		}
+	}
+
+	dma_cfg.dma_callback = dma_callback_test;
+
+	dma_cfg.head_block = &dma_block_cfg;
+
+	if (dma_config(dev, ch, &dma_cfg)) {
+		LOG_INF("ERROR: configure\n");
+		return;
+	}
+	if (dma_start(dev, ch)) {
+		LOG_INF("ERROR: transfer\n");
+		return;
+	}
 }
 
 static void dma_validation_func(void *dummy1, void *dummy2, void *dummy3)
 {
 	uint32_t events;
 	k_event_init(&dma_event);
-	uint8_t opt = '2';
 
 	while (true) {
 		events = k_event_wait(&dma_event, 0xFFF, true, K_FOREVER);
 		switch (events) {
 		case 0x001: /* no argu */
+			dma_npcx_api_example();
 			break;
 		case 0x002:
 			if (!strcmp("gpd", arguments[0])) {
@@ -417,13 +470,17 @@ static void dma_validation_func(void *dummy1, void *dummy2, void *dummy3)
 				LOG_INF("DMA power down interrupt test");
 				power_down_test();
 			}
+			break;
+		case 0x004:
+			break;
+		case 0x008:
 			if (!strcmp("read", arguments[0])) {
 				LOG_INF("DMA read flash");
-				dma_read_flash_val();
+				read_flash(arguments[1], arguments[2]);
 			}
 			if (!strcmp("ram", arguments[0])) {
-				LOG_INF("RAM to RAM data transfer");
-				dma_npcx_api_test(opt);
+				LOG_INF("RAM to RAM");
+				move_data_ram_to_ram(arguments[1], arguments[2]);
 			}
 			break;
 		default:
@@ -468,7 +525,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 	sub_dma, SHELL_CMD_ARG(c0, NULL, "dma c0", dma_command, 1, 0),
 	SHELL_CMD_ARG(c1, NULL, "dma c1 arg0", dma_command, 2, 0),
 	SHELL_CMD_ARG(c2, NULL, "dma c2 arg0 arg1", dma_command, 3, 0),
-	SHELL_CMD_ARG(cfg, NULL, "dma cfg arg0 arg1 arg2", dma_command, 4, 0),
+	SHELL_CMD_ARG(c3, NULL, "dma c3 arg0 arg1 arg2", dma_command, 4, 0),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 );
 SHELL_CMD_REGISTER(dma, &sub_dma, "nuvoton dma validation", NULL);
