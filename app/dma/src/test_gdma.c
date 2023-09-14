@@ -4,6 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+ *	@file
+ *	@brief	Verify NPCX4 DMA Function.
+ *			Please refer `dma_npcx_api_example` for simplest usage.
+ *			channel_direction, block_size, source_address, dest_address
+ *			are the minimal requirments to use DMA api.
+ *	@details
+ *	- Test steps
+ */
+
 #include <stdlib.h>
 
 #include <zephyr/device.h>
@@ -65,173 +75,11 @@ static uint32_t gdma_test_flash_src[] = {
 	FLASH_BASE1_ADDR,		/* external flash */
 };
 
-/* isr event */
-volatile uint32_t usr_flag;
-
-static void dma_callback_test(const struct device *dma_dev, void *arg,
-				uint32_t id, int status)
-{
-	struct dma_reg *const inst = HAL_INSTANCE(dma_dev, id);
-	uint8_t isr = inst->CONTROL & BIT(NPCX_DMACTL_TC);
-
-	if (status < 0) {
-		LOG_INF("DMA could not proceed, an error occurred\n");
-	}
-	LOG_INF("Data transfer completed");
-	LOG_INF("%s: status is %02X\n", __func__, isr);
-	if (gdma_data_check(dma_dev, id)) {
-		LOG_INF("[FAIL]");
-	} else {
-		LOG_INF("[PASS]");
-	}
-}
-
-/*
- * Validation Variable Setting
- */
-
-static uint8_t testSetting;
-static uint32_t ch, ram;
-
-static void rand_setting_init(uint32_t mask)
-{
-	testSetting = sys_rand32_get() & mask;
-	ch = testSetting & 0x01;
-	ram = (testSetting >> 1) & 0x01;
-}
-static uint8_t fiu_ctl, dma_FIUMode, dma_FIUBurst;
-static void rand_setting_init_fiu(uint32_t mask)
-{
-	fiu_ctl = sys_rand32_get() & mask;
-	dma_FIUMode = fiu_ctl & 0x03;
-	dma_FIUBurst = (fiu_ctl >> 2) & 0x01;
-}
-
-/*
- * Finished Function
- */
-
-int *npcx_power_down_gpd(const struct device *dev, const uint32_t channel,
-					uint32_t val0, uint32_t val1)
-{
-	static int arr[2] = {0};
-	const uint32_t dma_base = get_dev_base(dev);
-	uint32_t ch0 = channel, ch1 = channel ^ 1;
-
-	/* power down one channel */
-	dma_set_power_down(dev, ch0, ENABLE); /* can't write ch0 */
-	DMA_SRCB(dma_base, ch0) = val0;
-	DMA_SRCB(dma_base, ch1) = val1;
-
-	arr[0] = ((DMA_SRCB(dma_base, ch0)) == val0) ? 1 : 0;
-	arr[1] = ((DMA_SRCB(dma_base, ch1)) == val1) ? 1 : 0;
-
-	/* power up channel */
-	dma_set_power_down(dev, ch0, DISABLE);
-
-	return arr;
-}
-
-static void npcx_power_down_2(void)
-{
-	uint32_t val1 = 0x11223344, val2 = 0x9ABCDEF0;
-
-	for (int i = 0; i < NUM_DMA_DEVICE; i++) {
-		for (uint8_t ch = 0; ch < MAX_DMA_CHANNELS; ch++) {
-			int *res = npcx_power_down_gpd(dma_devices[i], ch, val1, val2);
-
-			if (res[0]) {
-				LOG_INF("[FAIL][GDMA%d]: GPD%d power down", i, ch);
-			} else {
-				LOG_INF("[PASS][GDMA%d]: GPD%d power down", i, ch);
-			}
-			if (res[1]) {
-				LOG_INF("[PASS][GDMA%d]: GPD%d still run when GDP%d power down",
-					i, ch ^ 1, ch);
-			} else {
-				LOG_INF("[FAIL][GDMA%d]: GPD%d still run when GDP%d power down",
-					i, ch ^ 1, ch);
-			}
-		}
-	}
-}
-
-/*
- * Working Function // todo area
- */
-
-volatile uint8_t isr_flag;
-
-static void dma_set_rand_para(uint8_t channel, uint32_t *src_addr, uint32_t *dst_addr)
-{
-
-	uint8_t dma_ctf;
-	struct dma_npcx_ch_config dma_ctrl = {0};
-
-	dma_ctf = sys_rand32_get() & 0x0f;
-	dma_ctrl.tws_bme = (dma_ctf >> 2) & 0x03;
-	dma_ctrl.sadir = (dma_ctf >> 1) & 0x01;
-
-	dma_ctrl.dadir = dma_ctf & 0x01;
-
-	dma_ctrl.safix = GDMA_ADDR_CHANGE;
-	dma_ctrl.dafix = GDMA_ADDR_CHANGE;
-
-	dma_ctrl.cnt = dma_calculate_cnt(MOVE_SIZE, dma_ctrl.tws_bme);
-	dma_ctrl.src = dma_ctrl.sadir ? (uint32_t)(src_addr + MOVE_SIZE) : (uint32_t)src_addr;
-	dma_ctrl.dst = dma_ctrl.dadir ? (uint32_t)(dst_addr + MOVE_SIZE) : (uint32_t)dst_addr;
-
-	dma_set_controller(dma_devices[0], channel, &dma_ctrl);
-
-}
-
-
-
-/*
- * Under checking Function
- */
-
-static void power_down_test(void)
-{
-	memset(src, 0, sizeof(src));
-	memset(dst, 0, sizeof(dst));
-
-	dma_set_rand_para(0, src, dst);
-	dma_start_softreq(dma_devices[0], 0);
-
-	isr_flag = 0;
-	/* todo */
-	while ((BIT(NPCX_DMACTL_TC)) == 0) {
-		if (isr_flag != 0) {
-			break;
-		}
-	}
-
-	LOG_INF("[PASS][GDMA]:got interrupt");
-
-	*(uint8_t *)0x4000D00A = 0x80;
-	dma_set_rand_para(0, src, dst);
-	dma_start_softreq(dma_devices[0], 0);
-
-	isr_flag = 0;
-	while ((BIT(NPCX_DMACTL_TC)) == 0) {
-		if (isr_flag != 0) {
-			break;
-		}
-	}
-	if (isr_flag == 0) {
-		LOG_INF("[PASS][GDMA]:no interrupt after power down");
-	} else {
-		LOG_INF("[FAIL][GDMA]:Got interrupt after power down");
-	}
-	*(uint8_t *)0x4000D00A = 0x00;
-}
-
 static uint32_t gdma_data_check(const struct device *dev, const uint8_t channel)
 {
 	struct dma_reg *const inst = HAL_INSTANCE(dev, channel);
 
-	uint8_t tws = GET_FIELD(inst->CONTROL, NPCX_DMACTL_GDMAMS);
+	uint8_t tws = GET_FIELD(inst->CONTROL, NPCX_DMACTL_TWS);
 	uint8_t bme = inst->CONTROL & BIT(NPCX_DMACTL_BME);
 	uint8_t dadir = inst->CONTROL & BIT(NPCX_DMACTL_DADIR);
 	uint8_t sadir = inst->CONTROL & BIT(NPCX_DMACTL_SADIR);
@@ -337,6 +185,178 @@ static uint32_t gdma_data_check(const struct device *dev, const uint8_t channel)
 
 	return tcnt;
 }
+/* isr event */
+
+static void dma_callback_test(const struct device *dma_dev, void *arg,
+				uint32_t id, int status)
+{
+	struct dma_reg *const inst = HAL_INSTANCE(dma_dev, id);
+	uint8_t isr = inst->CONTROL & BIT(NPCX_DMACTL_TC);
+
+	if (status < 0) {
+		LOG_INF("DMA could not proceed, an error occurred\n");
+	}
+	LOG_INF("Data transfer completed");
+	LOG_INF("%s: status is %02X\n", __func__, isr);
+	if (gdma_data_check(dma_dev, id)) {
+		LOG_INF("[FAIL]");
+	} else {
+		LOG_INF("[PASS]");
+	}
+}
+
+/*
+ * Validation Variable Setting
+ */
+
+static uint8_t testSetting;
+static uint32_t ch, ram;
+
+static void rand_setting_init(uint32_t mask)
+{
+	testSetting = sys_rand32_get() & mask;
+	ch = testSetting & 0x01;
+	ram = (testSetting >> 1) & 0x01;
+}
+static uint8_t fiu_ctl, dma_FIUMode, dma_FIUBurst;
+static void rand_setting_init_fiu(uint32_t mask)
+{
+	fiu_ctl = sys_rand32_get() & mask;
+	dma_FIUMode = fiu_ctl & 0x03;
+	dma_FIUBurst = (fiu_ctl >> 2) & 0x01;
+}
+
+uintptr_t align_up(uintptr_t addr, tw_set tws)
+{
+	uintptr_t mask = tws - 1;
+	/* check power of two */
+	if ((tws & mask) == 0) {
+		return ((addr + mask) & ~mask);
+	} else {
+		return (((addr + mask) / tws) * tws);
+	}
+}
+
+/*
+ * Finished Function
+ */
+
+int *npcx_power_down_gpd(const struct device *dev, const uint32_t channel,
+					uint32_t val0, uint32_t val1)
+{
+	static int arr[2] = {0};
+	const uint32_t dma_base = get_dev_base(dev);
+	uint32_t ch0 = channel, ch1 = channel ^ 1;
+
+	/* power down one channel */
+	dma_set_power_down(dev, ch0, ENABLE); /* can't write ch0 */
+	DMA_SRCB(dma_base, ch0) = val0;
+	DMA_SRCB(dma_base, ch1) = val1;
+
+	arr[0] = ((DMA_SRCB(dma_base, ch0)) == val0) ? 1 : 0;
+	arr[1] = ((DMA_SRCB(dma_base, ch1)) == val1) ? 1 : 0;
+
+	/* power up channel */
+	dma_set_power_down(dev, ch0, DISABLE);
+
+	return arr;
+}
+
+static void npcx_power_down_2(void)
+{
+	uint32_t val1 = 0x11223344, val2 = 0x9ABCDEF0;
+
+	for (int i = 0; i < NUM_DMA_DEVICE; i++) {
+		for (uint8_t ch = 0; ch < MAX_DMA_CHANNELS; ch++) {
+			int *res = npcx_power_down_gpd(dma_devices[i], ch, val1, val2);
+
+			if (res[0]) {
+				LOG_INF("[FAIL][GDMA%d]: GPD%d power down", i, ch);
+			} else {
+				LOG_INF("[PASS][GDMA%d]: GPD%d power down", i, ch);
+			}
+			if (res[1]) {
+				LOG_INF("[PASS][GDMA%d]: GPD%d still run when GDP%d power down",
+					i, ch ^ 1, ch);
+			} else {
+				LOG_INF("[FAIL][GDMA%d]: GPD%d still run when GDP%d power down",
+					i, ch ^ 1, ch);
+			}
+		}
+	}
+}
+
+/*
+ * Working Function // todo area
+ */
+
+volatile uint8_t isr_flag;
+
+static void dma_set_rand_para(uint8_t channel, uint32_t *src_addr, uint32_t *dst_addr)
+{
+
+	uint8_t dma_ctf;
+	struct dma_npcx_ch_config dma_ctrl = {0};
+
+	dma_ctf = sys_rand32_get() & 0x0f;
+	dma_ctrl.tws_bme = (dma_ctf >> 2) & 0x03;
+	dma_ctrl.sadir = (dma_ctf >> 1) & 0x01;
+
+	dma_ctrl.dadir = dma_ctf & 0x01;
+
+	dma_ctrl.safix = GDMA_ADDR_CHANGE;
+	dma_ctrl.dafix = GDMA_ADDR_CHANGE;
+
+	dma_ctrl.cnt = dma_calculate_cnt(MOVE_SIZE, dma_ctrl.tws_bme);
+	dma_ctrl.src = dma_ctrl.sadir ? (uint32_t)(src_addr + MOVE_SIZE) : (uint32_t)src_addr;
+	dma_ctrl.dst = dma_ctrl.dadir ? (uint32_t)(dst_addr + MOVE_SIZE) : (uint32_t)dst_addr;
+
+	dma_set_controller(dma_devices[0], channel, &dma_ctrl);
+
+}
+
+
+/*
+ * Under checking Function
+ */
+
+static void power_down_test(void)
+{
+	memset(src, 0, sizeof(src));
+	memset(dst, 0, sizeof(dst));
+
+	dma_set_rand_para(0, src, dst);
+	dma_start_softreq(dma_devices[0], 0);
+
+	isr_flag = 0;
+	/* todo */
+	while ((BIT(NPCX_DMACTL_TC)) == 0) {
+		if (isr_flag != 0) {
+			break;
+		}
+	}
+
+	LOG_INF("[PASS][GDMA]:got interrupt");
+
+	*(uint8_t *)0x4000D00A = 0x80;
+	dma_set_rand_para(0, src, dst);
+	dma_start_softreq(dma_devices[0], 0);
+
+	isr_flag = 0;
+	while ((BIT(NPCX_DMACTL_TC)) == 0) {
+		if (isr_flag != 0) {
+			break;
+		}
+	}
+	if (isr_flag == 0) {
+		LOG_INF("[PASS][GDMA]:no interrupt after power down");
+	} else {
+		LOG_INF("[FAIL][GDMA]:Got interrupt after power down");
+	}
+	*(uint8_t *)0x4000D00A = 0x00;
+}
+
+
 
 /* base on chan_blen_transfer */
 static void dma_npcx_api_example(void)
@@ -345,14 +365,16 @@ static void dma_npcx_api_example(void)
 	uint8_t dev_num = 0;
 	uint8_t ch = 0;
 	const struct device *dev = dma_devices[dev_num];
-
-	dma_cfg.channel_direction = MEMORY_TO_MEMORY;
 	memset(rx_data, 0, sizeof(rx_data));
+
+	/* Minimal setting for DMA api */
+	dma_cfg.channel_direction = MEMORY_TO_MEMORY;
 	dma_block_cfg.block_size = sizeof(tx_data);
 	dma_block_cfg.source_address = (uint32_t)tx_data;
 	dma_block_cfg.dest_address = (uint32_t)rx_data;
-	dma_cfg.dma_callback = dma_callback_test;
 
+	/* isr event */
+	dma_cfg.dma_callback = dma_callback_test;
 	dma_cfg.head_block = &dma_block_cfg;
 
 	LOG_INF("Preparing DMA Controller: Name=%s, Chan_ID=%u", dev->name, ch);
