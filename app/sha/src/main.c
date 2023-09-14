@@ -45,9 +45,10 @@ const char *getSHA_Alg(enum hash_algo alg)
 	return "";
 }
 
-static void hash_test(uint8_t index, enum hash_algo sha, struct hash_ctx *ctx)
+static int hash_test(const struct shell *shell, uint8_t index,
+		      enum hash_algo sha, struct hash_ctx *ctx)
 {
-	const struct hash_tp *tp = &hash_test_tbl[(sha - 2)];
+	const struct hash_tp *tp = &hash_test_tbl[(sha - CRYPTO_HASH_ALGO_SHA256)];
 
 	uint8_t ret;
 	uint8_t out_buf[64] = {0};
@@ -62,30 +63,32 @@ static void hash_test(uint8_t index, enum hash_algo sha, struct hash_ctx *ctx)
 		.out_buf = out_buf,
 	};
 
-	LOG_INF("SHA alg: %s, index: %x", getSHA_Alg(sha), index);
+	shell_info(shell, "SHA alg: %s, index: %x", getSHA_Alg(sha), index);
 
 	ret = hash_compute(ctx, &pkt);
 	if (ret != 0) {
-		LOG_ERR("Failed to compute hash for test");
-		return;
+		shell_error(shell, "Failed to compute hash for test");
+		return ret;
 	}
 	ret = memcmp(pkt.out_buf, &dig_ptr[dig_index], tp->digest_sz);
 	if (ret != 0) {
-		LOG_ERR("Not match of result for HASH test");
+		shell_error(shell, "Not match of result for HASH test");
 		for (cnt = 0; cnt < tp->digest_sz; cnt++) {
 			if (pkt.out_buf[cnt] != dig_ptr[dig_index + cnt]) {
-				LOG_INF("out[%x]=%x, dig[%x]=%x", cnt, pkt.out_buf[cnt],
+				shell_info(shell, "out[%x]=%x, dig[%x]=%x", cnt, pkt.out_buf[cnt],
 					   cnt, dig_ptr[dig_index + cnt]);
 			}
 		}
-		return;
+		return ret;
 	}
+
+	return 0;
 }
 
 static void sha_thread_entry(void *dummy1, void *dummy2, void *dummy3)
 {
 	if (!device_is_ready(sha_dev)) {
-		printk("%s is not ready\n", sha_dev->name);
+		LOG_INF("%s is not ready\n", sha_dev->name);
 		return;
 	}
 
@@ -104,6 +107,8 @@ static int sha_alg_mode(const struct shell *shell, size_t argc, char **argv)
 
 	g_sha = val;
 
+	shell_info(shell, "Using SHA Alg %s", getSHA_Alg(g_sha));
+
 	return 0;
 }
 
@@ -119,23 +124,28 @@ static int sha_test(const struct shell *shell, size_t argc, char **argv)
 		return -EINVAL;
 	}
 
-	LOG_INF("Start SHA test...");
+	shell_info(shell, "Start SHA test...");
 
 	ctx.flags = CAP_SYNC_OPS | CAP_SEPARATE_IO_BUFS;
 
 	ret = hash_begin_session(sha_dev, &ctx, g_sha);
 	if (ret != 0) {
-		LOG_ERR("Failed to init session");
+		shell_error(shell, "Failed to init session");
 		return -EINVAL;
 	}
 
 	for (cnt = 0; cnt <= val; cnt++) {
-		hash_test(cnt, g_sha, &ctx);
+		ret = hash_test(shell, cnt, g_sha, &ctx);
+		if (ret != 0) {
+			shell_error(shell, "[FAIL] hash_test[%d] fail", cnt);
+			return -EINVAL;
+		}
 	}
 
 	hash_free_session(sha_dev, &ctx);
 
-	LOG_INF("[PASS] SHA test completion");
+	shell_info(shell, "[PASS] SHA test completion");
+	shell_info(shell, "[GO]");
 
 	return 0;
 }
@@ -143,11 +153,11 @@ static int sha_test(const struct shell *shell, size_t argc, char **argv)
 /* Main entry */
 void main(void)
 {
-	LOG_INF("Start SHA Task");
 	k_thread_create(&sha_id, temp_stack, STACK_SIZE, sha_thread_entry, NULL, NULL,
 			NULL, THREAD_PRIORITY, K_INHERIT_PERMS, K_FOREVER);
 	k_thread_name_set(&sha_id, "sha_testing");
 	k_thread_start(&sha_id);
+	LOG_INF("Start SHA Task");
 }
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_sha,
