@@ -45,8 +45,9 @@
 		pinctrl-names = "default"; */
 
 		/* Read, write mode selection */
-		read-mode  = "QUAD_IO";
-		write-mode = "QUAD_OUTPUT";
+		rd-mode = "NPCX_RD_MODE_FAST_QUAD";
+		dmm-cyc = <0x84>;
+		wr-mode = "QUAD_OUTPUT";
 
 		/* NAND flash information */
 		page-size = <0x800>;    /* 1 page = 2048 bytes*/
