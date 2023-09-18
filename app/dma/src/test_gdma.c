@@ -80,9 +80,9 @@ static uint32_t gdma_data_check(const struct device *dev, const uint8_t channel)
 	struct dma_reg *const inst = HAL_INSTANCE(dev, channel);
 
 	uint8_t tws = GET_FIELD(inst->CONTROL, NPCX_DMACTL_TWS);
-	uint8_t bme = inst->CONTROL & BIT(NPCX_DMACTL_BME);
-	uint8_t dadir = inst->CONTROL & BIT(NPCX_DMACTL_DADIR);
-	uint8_t sadir = inst->CONTROL & BIT(NPCX_DMACTL_SADIR);
+	uint8_t bme = GET_BIT(inst->CONTROL, NPCX_DMACTL_BME);
+	uint8_t dadir = GET_BIT(inst->CONTROL, NPCX_DMACTL_DADIR);
+	uint8_t sadir = GET_BIT(inst->CONTROL, NPCX_DMACTL_SADIR);
 	uint32_t tcnt = inst->TCNT;
 	uint32_t src_ = inst->SRCB;
 	uint32_t dst_ = inst->DSTB;
@@ -120,8 +120,11 @@ static uint32_t gdma_data_check(const struct device *dev, const uint8_t channel)
 		(!dadir && (cdst != (dst_ + moveSize)))) {
 		LOG_INF("[FAIL][GDMA] ch%d CDST incorrect \r\n", channel);
 	}
-	if (bme)
-		tcnt <<= 2;
+	if (bme) {
+		tcnt >>= 2;
+		tcnt >>= (2 << (tws));
+		LOG_INF("tcnt %d", tcnt);
+	}
 
 	switch (tws) {
 	case 0:
@@ -163,6 +166,7 @@ static uint32_t gdma_data_check(const struct device *dev, const uint8_t channel)
 		} while (tcnt != 0);
 		break;
 	case 2:
+	case 3:
 		LOG_INF("Double Word mode | ");
 		LOG_INF("src %p: %x | dst %p: %x \r\n",
 			(void *)src_DW, *src_DW, (void *)dst_DW, *dst_DW);
@@ -441,7 +445,7 @@ static void move_data_ram_to_ram(char *ram, char *ch_set)
 	dma_cfg.channel_direction = MEMORY_TO_MEMORY;
 	memset((uint8_t *) GDMAMemPool, 0, MOVE_SIZE + 4);
 	memset((uint8_t *) MRAM(dev_num), 0, MOVE_SIZE + 4);
-	LOG_INF("test");
+
 	dma_block_cfg.block_size = MOVE_SIZE + 4;
 	if (ram_set) {
 		dma_block_cfg.source_address = (uint32_t)MRAM(dev_num);
