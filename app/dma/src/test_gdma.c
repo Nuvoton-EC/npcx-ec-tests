@@ -7,11 +7,25 @@
 /**
  *	@file
  *	@brief	Verify NPCX4 DMA Function.
- *			Please refer `dma_npcx_api_example` for simplest usage.
- *			channel_direction, block_size, source_address, dest_address
- *			are the minimal requirments to use DMA api.
- *	@details
- *	- Test steps
+ *		Please refer `dma_npcx_api_example` for simplest usage.
+ *		- channel_direction - HW support M2M, M2P, P2M
+ *			block mode: RAM to RAM, RAM to/from SPI flash
+ *			demand mode:
+ *			eSPI_SIF, AES, SHA to/from RAM or from SPI flash
+ *		- block_size - number of bytes to be transferred
+ *		- source_address
+ *		- dest_address
+ *		- source_data_size - transfer data size for source
+ *			1/2/4/16 : 1B/1W/1DW/Burst Mode with DW
+ *		- dest_data_size - transfer data size for dest
+ *		are the minimal requirments to use DMA api.
+ *
+ *	@details Validation item
+ *		- read_flash
+ *		- move_data_ram_to_ram
+ *		- npcx_power_down_2
+ *		- parallel_data_transfer (working)
+ *
  */
 
 #include <stdlib.h>
@@ -55,19 +69,20 @@ static const struct device *const dma_devices[] = {
 #define cal_flash_type_num(ADDR)	ARRAY_SIZE(ADDR)
 #define MRAM(inst)	((const struct dma_npcx_config *)dma_devices[inst]->config)->buttom_mram
 #define INT_FLASH_BASE1_ADDR	0x60000000	/* private flash */
-#define FLASH_BASE1_ADDR		0x68000000	/* shared flash */
+#define FLASH_BASE1_ADDR	0x68000000	/* shared flash */
 
 /* mem to mem config */
 static uint32_t GDMAMemPool[MOVE_SIZE + 4] __aligned(16);
 
-static uint32_t src[TRANSFER_SIZE];
-static uint32_t dst[TRANSFER_SIZE] __aligned(16);
-
 static const char tx_data[] = "It is harder to be kind than to be wise........";
 static char rx_data[48] = { 0 };
+static const char tx_data1[] = "........wise be to than kind be to harder is It";
+static char rx_data1[48] = { 0 };
 
 struct dma_config dma_cfg = { 0 };
 struct dma_block_config dma_block_cfg = { 0 };
+struct dma_config dma_cfg1 = { 0 };
+struct dma_block_config dma_block_cfg1 = { 0 };
 
 /* flash to mem config */
 static uint32_t gdma_test_flash_src[] = {
@@ -121,9 +136,7 @@ static uint32_t gdma_data_check(const struct device *dev, const uint8_t channel)
 		LOG_INF("[FAIL][GDMA] ch%d CDST incorrect \r\n", channel);
 	}
 	if (bme) {
-		tcnt >>= 2;
-		tcnt >>= (2 << (tws));
-		LOG_INF("tcnt %d", tcnt);
+		tcnt <<= 2;
 	}
 
 	switch (tws) {
@@ -195,7 +208,7 @@ static void dma_callback_test(const struct device *dma_dev, void *arg,
 				uint32_t id, int status)
 {
 	struct dma_reg *const inst = HAL_INSTANCE(dma_dev, id);
-	uint8_t isr = inst->CONTROL & BIT(NPCX_DMACTL_TC);
+	uint8_t isr = GET_BIT(inst->CONTROL, NPCX_DMACTL_TC);
 
 	if (status < 0) {
 		LOG_INF("DMA could not proceed, an error occurred\n");
@@ -213,33 +226,7 @@ static void dma_callback_test(const struct device *dma_dev, void *arg,
  * Validation Variable Setting
  */
 
-static uint8_t testSetting;
-static uint32_t ch, ram;
 
-static void rand_setting_init(uint32_t mask)
-{
-	testSetting = sys_rand32_get() & mask;
-	ch = testSetting & 0x01;
-	ram = (testSetting >> 1) & 0x01;
-}
-static uint8_t fiu_ctl, dma_FIUMode, dma_FIUBurst;
-static void rand_setting_init_fiu(uint32_t mask)
-{
-	fiu_ctl = sys_rand32_get() & mask;
-	dma_FIUMode = fiu_ctl & 0x03;
-	dma_FIUBurst = (fiu_ctl >> 2) & 0x01;
-}
-
-uintptr_t align_up(uintptr_t addr, tw_set tws)
-{
-	uintptr_t mask = tws - 1;
-	/* check power of two */
-	if ((tws & mask) == 0) {
-		return ((addr + mask) & ~mask);
-	} else {
-		return (((addr + mask) / tws) * tws);
-	}
-}
 
 /*
  * Finished Function
@@ -291,75 +278,14 @@ static void npcx_power_down_2(void)
 }
 
 /*
- * Working Function // todo area
+ * Working Function
  */
 
-volatile uint8_t isr_flag;
-
-static void dma_set_rand_para(uint8_t channel, uint32_t *src_addr, uint32_t *dst_addr)
-{
-
-	uint8_t dma_ctf;
-	struct dma_npcx_ch_config dma_ctrl = {0};
-
-	dma_ctf = sys_rand32_get() & 0x0f;
-	dma_ctrl.tws_bme = (dma_ctf >> 2) & 0x03;
-	dma_ctrl.sadir = (dma_ctf >> 1) & 0x01;
-
-	dma_ctrl.dadir = dma_ctf & 0x01;
-
-	dma_ctrl.safix = GDMA_ADDR_CHANGE;
-	dma_ctrl.dafix = GDMA_ADDR_CHANGE;
-
-	dma_ctrl.cnt = dma_calculate_cnt(MOVE_SIZE, dma_ctrl.tws_bme);
-	dma_ctrl.src = dma_ctrl.sadir ? (uint32_t)(src_addr + MOVE_SIZE) : (uint32_t)src_addr;
-	dma_ctrl.dst = dma_ctrl.dadir ? (uint32_t)(dst_addr + MOVE_SIZE) : (uint32_t)dst_addr;
-
-	dma_set_controller(dma_devices[0], channel, &dma_ctrl);
-
-}
 
 
 /*
  * Under checking Function
  */
-
-static void power_down_test(void)
-{
-	memset(src, 0, sizeof(src));
-	memset(dst, 0, sizeof(dst));
-
-	dma_set_rand_para(0, src, dst);
-	dma_start_softreq(dma_devices[0], 0);
-
-	isr_flag = 0;
-	/* todo */
-	while ((BIT(NPCX_DMACTL_TC)) == 0) {
-		if (isr_flag != 0) {
-			break;
-		}
-	}
-
-	LOG_INF("[PASS][GDMA]:got interrupt");
-
-	*(uint8_t *)0x4000D00A = 0x80;
-	dma_set_rand_para(0, src, dst);
-	dma_start_softreq(dma_devices[0], 0);
-
-	isr_flag = 0;
-	while ((BIT(NPCX_DMACTL_TC)) == 0) {
-		if (isr_flag != 0) {
-			break;
-		}
-	}
-	if (isr_flag == 0) {
-		LOG_INF("[PASS][GDMA]:no interrupt after power down");
-	} else {
-		LOG_INF("[FAIL][GDMA]:Got interrupt after power down");
-	}
-	*(uint8_t *)0x4000D00A = 0x00;
-}
-
 
 
 /* base on chan_blen_transfer */
@@ -373,6 +299,8 @@ static void dma_npcx_api_example(void)
 
 	/* Minimal setting for DMA api */
 	dma_cfg.channel_direction = MEMORY_TO_MEMORY;
+	dma_cfg.source_data_size = 1;
+	dma_cfg.dest_data_size = 1;
 	dma_block_cfg.block_size = sizeof(tx_data);
 	dma_block_cfg.source_address = (uint32_t)tx_data;
 	dma_block_cfg.dest_address = (uint32_t)rx_data;
@@ -391,10 +319,10 @@ static void dma_npcx_api_example(void)
 		LOG_INF("ERROR: transfer\n");
 		return;
 	}
-	LOG_INF("%s\n", rx_data);
+	LOG_INF("tx_data : %s\n", tx_data);
+	LOG_INF("rx_data : %s\n", rx_data);
 	if (strcmp(tx_data, rx_data) != 0) {
 		LOG_INF("[FAIL] Data transfer");
-		return;
 	} else {
 		LOG_INF("[PASS] Data transfer");
 	}
@@ -405,6 +333,7 @@ static void read_flash(char *src, char *dst)
 	uint8_t dev_num = 0;
 	uint8_t opt = atoi(src);
 	uint8_t ram = atoi(dst);
+	uint8_t ch = 0;
 	const struct device *dev = dma_devices[dev_num];
 
 	memset((uint8_t *)MRAM(dev_num), 0, MOVE_SIZE + 4);
@@ -476,6 +405,62 @@ static void move_data_ram_to_ram(char *ram, char *ch_set)
 	}
 }
 
+static void parallel_data_transfer(void)
+{
+	uint8_t dev_num = 0;
+	uint8_t ch = 0;
+	const struct device *dev = dma_devices[dev_num];
+	const struct device *dev1 = dma_devices[dev_num ^ 1];
+
+	memset(rx_data, 0, sizeof(rx_data));
+	dma_cfg.channel_direction = MEMORY_TO_MEMORY;
+	dma_cfg.source_data_size = 1;
+	dma_cfg.dest_data_size = 1;
+	dma_block_cfg.block_size = sizeof(tx_data);
+	dma_block_cfg.source_address = (uint32_t)tx_data;
+	dma_block_cfg.dest_address = (uint32_t)rx_data;
+	dma_cfg.dma_callback = dma_callback_test;
+	dma_cfg.head_block = &dma_block_cfg;
+
+	memset(rx_data1, 0, sizeof(rx_data1));
+	dma_cfg1.channel_direction = MEMORY_TO_MEMORY;
+	dma_cfg1.source_data_size = 1;
+	dma_cfg1.dest_data_size = 1;
+	dma_block_cfg1.block_size = sizeof(tx_data1);
+	dma_block_cfg1.source_address = (uint32_t)tx_data1;
+	dma_block_cfg1.dest_address = (uint32_t)rx_data1;
+	dma_cfg1.dma_callback = dma_callback_test;
+	dma_cfg1.head_block = &dma_block_cfg1;
+
+	if (dma_config(dev, ch, &dma_cfg)) {
+		LOG_INF("ERROR: configure\n");
+		return;
+	}
+	if (dma_start(dev, ch)) {
+		LOG_INF("ERROR: transfer\n");
+		return;
+	}
+	if (dma_config(dev1, ch, &dma_cfg1)) {
+		LOG_INF("ERROR: configure\n");
+		return;
+	}
+	if (dma_start(dev1, ch)) {
+		LOG_INF("ERROR: transfer\n");
+		return;
+	}
+	if (strcmp(tx_data, rx_data) != 0) {
+		LOG_INF("[FAIL] Data transfer");
+	} else {
+		LOG_INF("[PASS] Data transfer");
+	}
+	if (strcmp(tx_data1, rx_data1) != 0) {
+		LOG_INF("[FAIL] Data transfer");
+	} else {
+		LOG_INF("[PASS] Data transfer");
+	}
+
+}
+
 static void dma_validation_func(void *dummy1, void *dummy2, void *dummy3)
 {
 	uint32_t events;
@@ -492,9 +477,9 @@ static void dma_validation_func(void *dummy1, void *dummy2, void *dummy3)
 				LOG_INF("DMA power down gpd test");
 				npcx_power_down_2();
 			}
-			if (!strcmp("gps", arguments[0])) {
-				LOG_INF("DMA power down interrupt test");
-				power_down_test();
+			if (!strcmp("para", arguments[0])) {
+				LOG_INF("Parallel data transfer");
+				parallel_data_transfer();
 			}
 			break;
 		case 0x004:
