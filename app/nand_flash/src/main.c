@@ -417,7 +417,7 @@ static void nand_flash_thread_entry(void)
 K_THREAD_DEFINE(nand_flash_thread_id, STACK_SIZE, nand_flash_thread_entry, NULL, NULL, NULL,
 		THREAD_PRIORITY, 0, -1);
 
-void main(void)
+int main(void)
 {
 
 	/* Zephyr driver validation main */
@@ -426,6 +426,8 @@ void main(void)
 	/* Init thread */
 	k_thread_name_set(nand_flash_thread_id, "nand_flash_testing");
 	k_thread_start(nand_flash_thread_id);
+
+	return 0;
 }
 
 static int nand_flash_read_id_handler(const struct shell *shell, size_t argc, char **argv)

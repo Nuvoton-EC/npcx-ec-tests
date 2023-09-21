@@ -174,13 +174,14 @@ int main(void)
 {
 	if (!device_is_ready(peci_dev)) {
 		LOG_INF("[FAIL]: PECI not ready");
-		return 0;
+		return -ENODEV;
 	}
 	k_thread_create(&temp_id, temp_stack, TASK_STACK_SIZE,
 			peci_validation_func, NULL, NULL, NULL, PRIORITY,
 			K_INHERIT_PERMS, K_FOREVER);
 	k_thread_name_set(&temp_id, "peci Validation");
 	k_thread_start(&temp_id);
+
 	return 0;
 }
 

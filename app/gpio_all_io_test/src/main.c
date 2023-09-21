@@ -494,7 +494,7 @@ static void auto_gpio_thread_entry(void)
 	uint32_t io = 0;
 
 	LOG_INF("auto gpio thread entry");
-	
+
 	while (true) {
 		switch (k_event_wait(&gpio_test_event, 0xFFF, true, K_FOREVER)) {
 		case GPIO_SYNC:
@@ -670,7 +670,7 @@ static void auto_gpio_thread_entry(void)
 #define NPCX_EPURST_CTL_EPUR2_EN	3
 #define NPCX_HIF_TYPE_LPC	1
 /* Main entry */
-void main(void)
+int main(void)
 {
 	LOG_INF("--- CI20 Zephyr GPIO Driver Validation ---");
 	int ret;
@@ -700,4 +700,6 @@ void main(void)
 		LOG_ERR("GPIO Configurefail.\n");
 	}
 	auto_gpio_thread_entry();
+
+	return 0;
 }

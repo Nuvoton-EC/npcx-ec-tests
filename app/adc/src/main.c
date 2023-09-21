@@ -240,7 +240,7 @@ static void adc_validation_func(void *dummy1, void *dummy2, void *dummy3)
 	}
 }
 
-void main(void)
+int main(void)
 {
 	/* Zephyr driver validation */
 	LOG_INF("Start ADC Validation Task\n");
@@ -248,6 +248,8 @@ void main(void)
 		NULL, NULL, NULL, PRIORITY, K_INHERIT_PERMS, K_FOREVER);
 	k_thread_name_set(&temp_id, "ADC Validation");
 	k_thread_start(&temp_id);
+
+	return 0;
 }
 
 static int adc_command(const struct shell *shell, size_t argc, char **argv)

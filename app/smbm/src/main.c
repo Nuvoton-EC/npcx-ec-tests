@@ -365,10 +365,12 @@ static void smb_thread_entry(void)
 #define THREAD_PRIORITY 1
 K_THREAD_DEFINE(smb_id, STACK_SIZE, smb_thread_entry, NULL, NULL, NULL, THREAD_PRIORITY, 0, -1);
 
-void main(void)
+int  main(void)
 {
 	k_thread_name_set(smb_id, "smb_testing");
 	k_thread_start(smb_id);
+
+	return 0;
 }
 
 static int smb_command0(const struct shell *shell, size_t argc, char **argv)

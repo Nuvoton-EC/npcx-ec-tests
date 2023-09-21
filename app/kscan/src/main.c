@@ -260,7 +260,8 @@ static void kscan_validation_func(void *dummy1, void *dummy2, void *dummy3)
 		}
 	}
 }
-void main(void)
+
+int main(void)
 {
 	/* Zephyr driver validation */
 	LOG_INF("Start KSCAN Validation Task\n");
@@ -268,7 +269,9 @@ void main(void)
 			NULL, PRIORITY, K_INHERIT_PERMS, K_FOREVER);
 	k_thread_name_set(&temp_id, "KSCAN Validation");
 	k_thread_start(&temp_id);
+	return 0;
 }
+
 static int kscan_command(const struct shell *shell, size_t argc, char **argv)
 {
 	int i, evt;

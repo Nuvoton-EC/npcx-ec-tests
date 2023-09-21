@@ -151,13 +151,15 @@ static int sha_test(const struct shell *shell, size_t argc, char **argv)
 }
 
 /* Main entry */
-void main(void)
+int main(void)
 {
 	k_thread_create(&sha_id, temp_stack, STACK_SIZE, sha_thread_entry, NULL, NULL,
 			NULL, THREAD_PRIORITY, K_INHERIT_PERMS, K_FOREVER);
 	k_thread_name_set(&sha_id, "sha_testing");
 	k_thread_start(&sha_id);
 	LOG_INF("Start SHA Task");
+
+	return 0;
 }
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_sha,

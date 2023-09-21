@@ -102,7 +102,7 @@ static void espi_validation_func(void *dummy1, void *dummy2, void *dummy3)
 			if (!strcmp("shm", arguments[0])) {
 				data = atoi(arguments[1]);
 				espi_hcmd(data);
-			}	
+			}
 			break;
 		case 0x008: /* fill key press plan */
 			espi_set_cfg(arguments[0], arguments[1], arguments[2]);
@@ -110,13 +110,15 @@ static void espi_validation_func(void *dummy1, void *dummy2, void *dummy3)
 		}
 	}
 }
-void main(void)
+int main(void)
 {
 	k_thread_create(&temp_id, temp_stack, TASK_STACK_SIZE,
 			espi_validation_func, NULL, NULL, NULL, PRIORITY,
 			K_INHERIT_PERMS, K_FOREVER);
 	k_thread_name_set(&temp_id, "eSPI Validation");
 	k_thread_start(&temp_id);
+
+	return 0;
 }
 static int espi_command(const struct shell *shell, size_t argc, char **argv)
 {
@@ -435,5 +437,5 @@ void espi_hcmd(uint32_t offs)
 	//ptr2[offs] = 0x11223344;
 	ptr2[offs] = ((i & 0xFF000000) >> 24)|((i & 0x00FF0000) >> 8)|
 					((i & 0x0000FF00) << 8)|((i & 0x000000FF) << 24);
-	ptr1[offs] = ~ptr1[offs]; 
+	ptr1[offs] = ~ptr1[offs];
 }

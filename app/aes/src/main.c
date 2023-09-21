@@ -408,7 +408,7 @@ static void aes_validation_func(void *dummy1, void *dummy2, void *dummy3)
 			test_result = AES_TEST_FAIL;
 			printk("[FAIL] mode not support\n\r");
 		}
-		
+
 		if (test_result == AES_TEST_PASS) {
 			printk("[PASS] AES %s mode key length %d bit\n\r", arguments[0], keysize);
 		} else {
@@ -417,7 +417,7 @@ static void aes_validation_func(void *dummy1, void *dummy2, void *dummy3)
 	}
 }
 
-void main(void)
+int main(void)
 {
 	/* Zephyr driver validation */
 	printk("Start AES Validation Task\n\r");
@@ -425,6 +425,8 @@ void main(void)
 			NULL, PRIORITY, K_INHERIT_PERMS, K_FOREVER);
 	k_thread_name_set(&temp_id, "AES Validation");
 	k_thread_start(&temp_id);
+
+	return 0;
 }
 
 static int aes_command(const struct shell *shell, size_t argc, char **argv)

@@ -906,7 +906,7 @@ static int nor_flash_list_handler(const struct shell *shell, size_t argc, char *
 	return 0;
 }
 
-void main(void)
+int main(void)
 {
 	/* Zephyr driver validation main */
 	LOG_INF("Start Nor Flash Validation");
@@ -915,13 +915,15 @@ void main(void)
 	for (int i = 0; i < NUM_FLASH_DEVICE; i++) {
 		if (!device_is_ready(flash_devices[i])) {
 			LOG_ERR("flash device %s is not ready", flash_devices[i]->name);
-			return;
+			return -ENODEV;
 		}
 		LOG_INF("flash device [%d]:%s is ready", i, flash_devices[i]->name);
 	}
 
 	/* Save current device */
 	test_objs.cur_dev =  flash_devices[0];
+
+	return 0;
 }
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_nor_flash,

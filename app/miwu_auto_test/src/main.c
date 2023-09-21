@@ -621,7 +621,7 @@ static void auto_miwu_thread_entry(void)
 
 #define NPCX_EPURST_CTL_EPUR2_EN 3
 /* Main entry */
-void main(void)
+int main(void)
 {
 	cmd_type = MIWU_TEST_AUTO_FALLING;
 	LOG_INF("--- CI20 Zephyr MIWU Driver Validation ---");
@@ -651,5 +651,7 @@ void main(void)
 
 	/* Let main thread go to sleep state */
 	k_sleep(K_FOREVER);
+
+	return 0;
 }
 

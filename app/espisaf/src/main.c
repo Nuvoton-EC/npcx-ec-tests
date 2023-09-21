@@ -18,7 +18,7 @@ LOG_MODULE_REGISTER(main);
 void test_espi_taf_init(void);
 
 /* Main entry */
-void main(void)
+int main(void)
 {
 	LOG_INF("--- CI20 Zephyr Driver Validation ---");
 
@@ -27,6 +27,8 @@ void main(void)
 
 	/* Let main thread go to sleep state */
 	k_sleep(K_FOREVER);
+
+	return 0;
 }
 
 /* Custom PM policy handler to forbid ec enter deep sleep if CONFIG_PM is enabled */

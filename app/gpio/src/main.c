@@ -417,20 +417,23 @@ static void gpio_isr(const struct device *port, struct gpio_callback *cb,
 }
 
 /* Main entry */
-void main(void)
+int main(void)
 {
 	LOG_INF("--- CI20 Zephyr GPIO Driver Validation ---");
 	LOG_INF("Usage: gpio [operation type] [group] [pin] [action]");
 	LOG_INF("operation type:\r\n\t-i: input\r\n\t\tno need to use action\r\n"
-"\t-o: output\r\n\t\taction: -ol(output low), -oh(output high)\r\n"
-"\t-pp: push-pull \r\n\t\taction: -u(pull up), -d(pull down)\r\n"
-"\t-od: open-drain \r\n\t\taction: -u(pull up), -d(pull down)\r\n"
-"\t-m: miwu and -ret: miwu result\r\n\t\taction:\r\n\t\t\t-f(falling)\r\n\t\t\t-r(rising)\r\n"
-"\t\t\t-af(any falling)\r\n\t\t\t-ar(any rising)\r\n"
-"\t\t\t-ll(low level)\r\n\t\t\t-hl(high level)\r\n");
+		"\t-o: output\r\n\t\taction: -ol(output low), -oh(output high)\r\n"
+		"\t-pp: push-pull \r\n\t\taction: -u(pull up), -d(pull down)\r\n"
+		"\t-od: open-drain \r\n\t\taction: -u(pull up), -d(pull down)\r\n"
+		"\t-m: miwu and -ret: miwu result\r\n\t\taction:\r\n\t\t"
+		"\t-f(falling)\r\n\t\t\t-r(rising)\r\n"
+		"\t\t\t-af(any falling)\r\n\t\t\t-ar(any rising)\r\n"
+		"\t\t\t-ll(low level)\r\n\t\t\t-hl(high level)\r\n");
 
 	/* Let main thread go to sleep state */
 	k_sleep(K_FOREVER);
+
+	return 0;
 }
 
 static int gpio_input_test(const struct shell *shell, size_t argc, char **argv)
