@@ -1,8 +1,8 @@
-# Zephyr Example Application
+# Zephyr Applications for NPCX EC Driver Validation
 
-This repository contains a Zephyr example application. The main purpose of this
-repository is to serve as a reference on how to structure Zephyr-based
-applications. Some of the features demonstrated in this example are:
+This repository contains plenty of Zephyr applications which main purpose is to
+validate current NPCX EC drivers. Some of the features demonstrated in this
+repository are:
 
 - Basic [Zephyr application][app_dev] skeleton
 - [Zephyr workspace applications][workspace_app]
@@ -11,16 +11,7 @@ applications. Some of the features demonstrated in this example are:
 - [Custom boards][board_porting]
 - Custom [devicetree bindings][bindings]
 - Out-of-tree [drivers][drivers]
-- Out-of-tree libraries
-- Example CI configuration (using Github Actions)
 - Custom [west extension][west_ext]
-
-This repository is versioned together with the [Zephyr main tree][zephyr]. This
-means that every time that Zephyr is tagged, this repository is tagged as well
-with the same version number, and the [manifest](west.yml) entry for `zephyr`
-will point to the corresponding Zephyr tag. For example, the `example-application`
-v2.6.0 will point to Zephyr v2.6.0. Note that the `main` branch always
-points to the development branch of Zephyr, also `main`.
 
 [app_dev]: https://docs.zephyrproject.org/latest/develop/application/index.html
 [workspace_app]: https://docs.zephyrproject.org/latest/develop/application/index.html#zephyr-workspace-app
@@ -40,7 +31,7 @@ environment. Follow the official
 
 ### Initialization
 
-The first step is to initialize the workspace folder (``my-workspace``) where
+The first step is to initialize the workspace folder (``zephyrproject``) where
 the ``example-application`` and all Zephyr modules will be cloned. Run the following
 command:
 
@@ -57,26 +48,19 @@ west update
 To build the application, run the following command:
 
 ```shell
-west build -b $BOARD app
+west build -b $BOARD app\`test_sutie`
 ```
 
-where `$BOARD` is the target board.
+where `$BOARD` is the npcx ec evaluation board,
+`test_sutie` is the the test suite of specific driver.
 
-You can use the `custom_plank` board found in this
-repository. Note that Zephyr sample boards may be used if an
-appropriate overlay is provided (see `app/boards`).
-
-A sample debug configuration is also provided. To apply it, run the following
-command:
-
-```shell
-west build -b $BOARD app -- -DOVERLAY_CONFIG=debug.conf
-```
+You can use the `npcx9m6f_evb`, `npcx4m8f_evb`, and `npck3m7k_evb` boards found
+in this repository.
 
 Once you have built the application, run the following command to flash it:
 
 ```shell
-west flash
+west flash --hex-file build/zephyr/zephyr.npcx.hex
 ```
 
 #### The shortcut for Building and running
