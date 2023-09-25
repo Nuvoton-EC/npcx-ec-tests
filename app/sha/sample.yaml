@@ -1,16 +1,20 @@
 sample:
-  description: GPIO test interrupt lantency suite sample, the simplest Zephyr
+  description: SHA test SHA256/384/512 suite sample, the simplest Zephyr
     application
-  name: gpio
+  name: sha
 common:
-    tags: introduction
+    tags: drivers sha
     integration_platforms:
-      - native_posix
+      - npcx4m8f_evb
     harness: console
     harness_config:
-      type: one_line
+      type: multi_line
       regex:
-        - "Hello World! (.*)"
+        - "SHA alg: CRYPTO_HASH_ALGO_SHA256, index: (.*)"
+        - "SHA alg: CRYPTO_HASH_ALGO_SHA384, index: (.*)"
+        - "SHA alg: CRYPTO_HASH_ALGO_SHA512, index: (.*)"
 tests:
-  sample.basic.helloworld:
-    tags: introduction
+  sample.board.npcx_evb:
+    tags: crypto
+    filter: CONFIG_CRYPTO
+    harness: console
