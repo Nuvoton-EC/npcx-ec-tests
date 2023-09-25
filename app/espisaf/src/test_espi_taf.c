@@ -276,8 +276,15 @@ int taf_npcx_flash_write(const struct device *dev, struct taf_handle_data *info)
 {
 	struct espi_taf_npcx_pckt taf_data;
 	struct espi_saf_packet pckt_taf;
-
 #if defined(CONFIG_FLASH_NPCX_FIU_NAND_INIT)
+	uint8_t data_buf[512];
+
+	if (info->length < 512) {
+		memset(data_buf, 0xFF, sizeof(data_buf));
+		memcpy(&data_buf, info->src, info->length);
+		info->length = 512;
+	}
+
 	if (nand_invalid_check(info->address, info->length)) {
 		LOG_ERR("Access NAND flash invalid region");
 		return -EINVAL;
@@ -287,7 +294,11 @@ int taf_npcx_flash_write(const struct device *dev, struct taf_handle_data *info)
 	pckt_taf.flash_addr = info->address;
 	pckt_taf.len = info->length;
 	taf_data.tag = info->taf_tag;
+#if defined(CONFIG_FLASH_NPCX_FIU_NAND_INIT)
+	taf_data.data = (uint8_t *)&data_buf;
+#else
 	taf_data.data = (uint8_t *)info->src;
+#endif
 	pckt_taf.buf = (uint8_t *)&taf_data;
 
 	return espi_saf_flash_write(dev, &pckt_taf);
@@ -297,18 +308,25 @@ int taf_npcx_flash_erase(const struct device *dev, struct taf_handle_data *info)
 {
 	struct espi_taf_npcx_pckt taf_data;
 	struct espi_saf_packet pckt_taf;
-
-#if defined(CONFIG_FLASH_NPCX_FIU_NAND_INIT)
+	uint32_t len;
 	int erase_blk[4] = {_4KB_, _32KB_, _64KB_, _128KB_};
 
-	if (nand_invalid_check(info->address, erase_blk[info->length])) {
+	len = erase_blk[info->length];
+
+#if defined(CONFIG_FLASH_NPCX_FIU_NAND_INIT)
+	if (len != _128KB_) {
+		LOG_ERR("Erase size not meet 128KB alignment");
+		return -EINVAL;
+	}
+
+	if (nand_invalid_check(info->address, len)) {
 		LOG_ERR("Access invalid NAND flash region");
 		return -EINVAL;
 	}
 #endif
 
 	pckt_taf.flash_addr = info->address;
-	pckt_taf.len = info->length;
+	pckt_taf.len = len;
 	taf_data.tag = info->taf_tag;
 	taf_data.data = (uint8_t *)info->buf;
 	pckt_taf.buf = (uint8_t *)&taf_data;
