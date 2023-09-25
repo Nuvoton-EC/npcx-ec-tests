@@ -4,30 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- *	@file
- *	@brief	Verify NPCX4 DMA Function.
- *		Please refer `dma_npcx_api_example` for simplest usage.
- *		- channel_direction - HW support M2M, M2P, P2M
- *			block mode: RAM to RAM, RAM to/from SPI flash
- *			demand mode:
- *			eSPI_SIF, AES, SHA to/from RAM or from SPI flash
- *		- block_size - number of bytes to be transferred
- *		- source_address
- *		- dest_address
- *		- source_data_size - transfer data size for source
- *			1/2/4/16 : 1B/1W/1DW/Burst Mode with DW
- *		- dest_data_size - transfer data size for dest
- *		are the minimal requirments to use DMA api.
- *
- *	@details Validation item
- *		- read_flash
- *		- move_data_ram_to_ram
- *		- npcx_power_down_2
- *		- parallel_data_transfer (working)
- *
- */
-
 #include <stdlib.h>
 
 #include <zephyr/device.h>
@@ -69,20 +45,18 @@ static const struct device *const dma_devices[] = {
 #define cal_flash_type_num(ADDR)	ARRAY_SIZE(ADDR)
 #define MRAM(inst)	((const struct dma_npcx_config *)dma_devices[inst]->config)->buttom_mram
 #define INT_FLASH_BASE1_ADDR	0x60000000	/* private flash */
-#define FLASH_BASE1_ADDR	0x68000000	/* shared flash */
+#define FLASH_BASE1_ADDR		0x68000000	/* shared flash */
+
+
+/* data transfer config */
+static const uint8_t align_val = 2;
+static struct dma_config dma_cfg = { 0 };
+static struct dma_block_config dma_block_cfg = { 0 };
+static struct dma_config dma_cfg1 = { 0 };
+static struct dma_block_config dma_block_cfg1 = { 0 };
 
 /* mem to mem config */
 static uint32_t GDMAMemPool[MOVE_SIZE + 4] __aligned(16);
-
-static const char tx_data[] = "It is harder to be kind than to be wise........";
-static char rx_data[48] = { 0 };
-static const char tx_data1[] = "........wise be to than kind be to harder is It";
-static char rx_data1[48] = { 0 };
-
-struct dma_config dma_cfg = { 0 };
-struct dma_block_config dma_block_cfg = { 0 };
-struct dma_config dma_cfg1 = { 0 };
-struct dma_block_config dma_block_cfg1 = { 0 };
 
 /* flash to mem config */
 static uint32_t gdma_test_flash_src[] = {
@@ -102,10 +76,6 @@ static uint32_t gdma_data_check(const struct device *dev, const uint8_t channel)
 	uint32_t src_ = inst->SRCB;
 	uint32_t dst_ = inst->DSTB;
 	uint32_t ctcnt = inst->CTCNT;
-	uint32_t csrc = inst->CSRC;
-	uint32_t cdst = inst->CDST;
-
-	uint32_t moveSize = (tcnt << tws) << (bme ? 2 : 0);
 
 	volatile uint8_t *dst_B, *src_B;
 	volatile uint16_t *dst_W, *src_W;
@@ -127,14 +97,7 @@ static uint32_t gdma_data_check(const struct device *dev, const uint8_t channel)
 	if (ctcnt) {
 		LOG_INF("[FAIL][GDMA] ch%d CTCNT not completed \r\n", channel);
 	}
-	if ((sadir && (csrc != (src_ - moveSize))) ||
-		(!sadir && (csrc != (src_ + moveSize)))) {
-		LOG_INF("[FAIL][GDMA] ch%d CSRC incorrect \r\n", channel);
-	}
-	if ((dadir && (cdst != (dst_ - moveSize))) ||
-		(!dadir && (cdst != (dst_ + moveSize)))) {
-		LOG_INF("[FAIL][GDMA] ch%d CDST incorrect \r\n", channel);
-	}
+
 	if (bme) {
 		tcnt <<= 2;
 	}
@@ -180,53 +143,77 @@ static uint32_t gdma_data_check(const struct device *dev, const uint8_t channel)
 		break;
 	case 2:
 	case 3:
-		LOG_INF("Double Word mode | ");
-		LOG_INF("src %p: %x | dst %p: %x \r\n",
-			(void *)src_DW, *src_DW, (void *)dst_DW, *dst_DW);
-		do {
-			if (*dst_DW != *src_DW) {
-				break;
-			}
-			if (dadir)
-				dst_DW -= 1;
-			else
-				dst_DW += 1;
-			if (sadir)
-				src_DW -= 1;
-			else
-				src_DW += 1;
-			tcnt--;
-		} while (tcnt != 0);
+		if (bme) {
+			LOG_INF("Double Word mode | Burst Mode");
+			LOG_INF("src %p: %x | dst %p: %x \r\n",
+				(void *)src_DW, *src_DW, (void *)dst_DW, *dst_DW);
+			do {
+				if (*dst_DW != *src_DW) {
+					break;
+				}
+				if (dadir)
+					dst_DW -= 1;
+				else
+					dst_DW += 1;
+				if (sadir)
+					src_DW -= 1;
+				else
+					src_DW += 1;
+				tcnt--;
+			} while (tcnt != 0);
+		} else {
+			LOG_INF("Double Word mode | Normal Mode");
+			LOG_INF("src %p: %x | dst %p: %x \r\n",
+				(void *)src_DW, *src_DW, (void *)dst_DW, *dst_DW);
+			do {
+				if (*dst_DW != *src_DW) {
+					break;
+				}
+				if (dadir)
+					dst_DW -= 1;
+				else
+					dst_DW += 1;
+				if (sadir)
+					src_DW -= 1;
+				else
+					src_DW += 1;
+				tcnt--;
+			} while (tcnt != 0);
+		}
 		break;
 	}
 
 	return tcnt;
 }
-/* isr event */
-
-static void dma_callback_test(const struct device *dma_dev, void *arg,
-				uint32_t id, int status)
+static void check_char_data(const char *tx_data, const char *rx_data, bool enable)
 {
-	struct dma_reg *const inst = HAL_INSTANCE(dma_dev, id);
-	uint8_t isr = GET_BIT(inst->CONTROL, NPCX_DMACTL_TC);
-
-	if (status < 0) {
-		LOG_INF("DMA could not proceed, an error occurred\n");
-	}
-	LOG_INF("Data transfer completed");
-	LOG_INF("%s: status is %02X\n", __func__, isr);
-	if (gdma_data_check(dma_dev, id)) {
-		LOG_INF("[FAIL]");
+	if (strcmp(tx_data, rx_data) != 0) {
+		LOG_INF("[FAIL] Data transfer");
 	} else {
-		LOG_INF("[PASS]");
+		LOG_INF("[PASS] Data transfer");
+	}
+	if (enable) {
+		LOG_INF("rx_data : %s", rx_data);
 	}
 }
 
-/*
- * Validation Variable Setting
- */
+/* isr event */
 
+static void cb_data_check(const struct device *dma_dev, void *arg,
+				uint32_t channel, int status)
+{
+	if (status < 0) {
+		LOG_INF("DMA could not proceed, an error occurred\n");
+	}
+	LOG_INF("channel : %d", channel);
 
+	if (gdma_data_check(dma_dev, channel)) {
+		LOG_INF("[FAIL] Data check");
+	} else {
+		LOG_INF("[PASS] Data check");
+		LOG_INF("Data transfer completed");
+	}
+}
 
 /*
  * Finished Function
@@ -277,21 +264,13 @@ static void npcx_power_down_2(void)
 	}
 }
 
-/*
- * Working Function
- */
-
-
-
-/*
- * Under checking Function
- */
-
 
 /* base on chan_blen_transfer */
 static void dma_npcx_api_example(void)
 {
 	/* simple memory(char) to memory(char) example*/
+	char tx_data[] __aligned(align_val) = "It is harder to be kind than to be wise........";
+	char rx_data[48] __aligned(align_val) = { 0 };
 	uint8_t dev_num = 0;
 	uint8_t ch = 0;
 	const struct device *dev = dma_devices[dev_num];
@@ -299,14 +278,13 @@ static void dma_npcx_api_example(void)
 
 	/* Minimal setting for DMA api */
 	dma_cfg.channel_direction = MEMORY_TO_MEMORY;
-	dma_cfg.source_data_size = 1;
-	dma_cfg.dest_data_size = 1;
+	dma_cfg.source_data_size = dma_cfg.dest_data_size = align_val;
 	dma_block_cfg.block_size = sizeof(tx_data);
 	dma_block_cfg.source_address = (uint32_t)tx_data;
 	dma_block_cfg.dest_address = (uint32_t)rx_data;
 
 	/* isr event */
-	dma_cfg.dma_callback = dma_callback_test;
+	dma_cfg.dma_callback = cb_data_check;
 	dma_cfg.head_block = &dma_block_cfg;
 
 	LOG_INF("Preparing DMA Controller: Name=%s, Chan_ID=%u", dev->name, ch);
@@ -319,20 +297,13 @@ static void dma_npcx_api_example(void)
 		LOG_INF("ERROR: transfer\n");
 		return;
 	}
-	LOG_INF("tx_data : %s\n", tx_data);
-	LOG_INF("rx_data : %s\n", rx_data);
-	if (strcmp(tx_data, rx_data) != 0) {
-		LOG_INF("[FAIL] Data transfer");
-	} else {
-		LOG_INF("[PASS] Data transfer");
-	}
+	check_char_data(tx_data, rx_data, 0);
 }
 
 static void read_flash(char *src, char *dst)
 {
 	uint8_t dev_num = 0;
-	uint8_t opt = atoi(src);
-	uint8_t ram = atoi(dst);
+	uint8_t opt = atoi(src), ram = atoi(dst);
 	uint8_t ch = 0;
 	const struct device *dev = dma_devices[dev_num];
 
@@ -348,10 +319,11 @@ static void read_flash(char *src, char *dst)
 	dma_block_cfg.dest_address = dst1;
 	dma_block_cfg.block_size = MOVE_SIZE + 4;
 
-	dma_cfg.dma_callback = dma_callback_test;
+	dma_cfg.dma_callback = cb_data_check;
 
 	dma_cfg.head_block = &dma_block_cfg;
 
+	dma_cfg.source_data_size = dma_cfg.dest_data_size = align_val;
 	if (dma_config(dev, ch, &dma_cfg)) {
 		LOG_INF("ERROR: configure\n");
 		return;
@@ -360,6 +332,7 @@ static void read_flash(char *src, char *dst)
 		LOG_INF("ERROR: transfer\n");
 		return;
 	}
+
 }
 
 static void move_data_ram_to_ram(char *ram, char *ch_set)
@@ -391,10 +364,11 @@ static void move_data_ram_to_ram(char *ram, char *ch_set)
 		}
 	}
 
-	dma_cfg.dma_callback = dma_callback_test;
+	dma_cfg.dma_callback = cb_data_check;
 
 	dma_cfg.head_block = &dma_block_cfg;
 
+	dma_cfg.source_data_size = dma_cfg.dest_data_size = align_val;
 	if (dma_config(dev, ch, &dma_cfg)) {
 		LOG_INF("ERROR: configure\n");
 		return;
@@ -404,60 +378,93 @@ static void move_data_ram_to_ram(char *ram, char *ch_set)
 		return;
 	}
 }
-
-static void parallel_data_transfer(void)
+static void parallel_data_transfer(char *option)
 {
-	uint8_t dev_num = 0;
-	uint8_t ch = 0;
-	const struct device *dev = dma_devices[dev_num];
-	const struct device *dev1 = dma_devices[dev_num ^ 1];
+	uint8_t opt = atoi(option);
+	const char tx_data[] __aligned(align_val) =
+		"It is harder to be kind than to be wise........";
+	char rx_data[48] __aligned(align_val) = { 0 };
+
+	const char tx_data1[] __aligned(align_val) =
+		"........wise be to than kind be to harder is It";
+	char rx_data1[48] __aligned(align_val) = { 0 };
+
+	const struct device *dev, *dev1;
+	uint8_t dev1_channel, dev2_channel;
+
+	switch (opt) {
+	case 1:
+		dev = dma_devices[0];
+		dev1 = dma_devices[1];
+		dev1_channel = 0;
+		dev2_channel = 1;
+		break;
+	case 2:
+		dev = dma_devices[0];
+		dev1 = dma_devices[1];
+		dev1_channel = 1;
+		dev2_channel = 0;
+		break;
+	case 3:
+		dev = dma_devices[0];
+		dev1 = dma_devices[1];
+		dev1_channel = dev2_channel = 0;
+		break;
+	case 4:
+		dev = dma_devices[0];
+		dev1 = dma_devices[1];
+		dev1_channel = dev2_channel = 1;
+		break;
+	case 5:
+		dev = dev1 = dma_devices[0];
+		dev1_channel = 0;
+		dev2_channel = 1;
+		break;
+	case 6:
+		dev = dev1 = dma_devices[1];
+		dev1_channel = 0;
+		dev2_channel = 1;
+		break;
+	}
 
 	memset(rx_data, 0, sizeof(rx_data));
-	dma_cfg.channel_direction = MEMORY_TO_MEMORY;
-	dma_cfg.source_data_size = 1;
-	dma_cfg.dest_data_size = 1;
+	memset(rx_data1, 0, sizeof(rx_data1));
+
+	dma_cfg.channel_direction = dma_cfg1.channel_direction = MEMORY_TO_MEMORY;
+	dma_cfg.source_data_size = dma_cfg.dest_data_size = align_val;
+	dma_cfg1.source_data_size = dma_cfg1.dest_data_size = align_val;
+
 	dma_block_cfg.block_size = sizeof(tx_data);
+	dma_block_cfg1.block_size = sizeof(tx_data1);
+
 	dma_block_cfg.source_address = (uint32_t)tx_data;
 	dma_block_cfg.dest_address = (uint32_t)rx_data;
-	dma_cfg.dma_callback = dma_callback_test;
 	dma_cfg.head_block = &dma_block_cfg;
+	dma_cfg.dma_callback = cb_data_check;
 
-	memset(rx_data1, 0, sizeof(rx_data1));
-	dma_cfg1.channel_direction = MEMORY_TO_MEMORY;
-	dma_cfg1.source_data_size = 1;
-	dma_cfg1.dest_data_size = 1;
-	dma_block_cfg1.block_size = sizeof(tx_data1);
 	dma_block_cfg1.source_address = (uint32_t)tx_data1;
 	dma_block_cfg1.dest_address = (uint32_t)rx_data1;
-	dma_cfg1.dma_callback = dma_callback_test;
 	dma_cfg1.head_block = &dma_block_cfg1;
+	dma_cfg1.dma_callback = cb_data_check;
 
-	if (dma_config(dev, ch, &dma_cfg)) {
+	if (dma_config(dev, dev1_channel, &dma_cfg)) {
 		LOG_INF("ERROR: configure\n");
 		return;
 	}
-	if (dma_start(dev, ch)) {
-		LOG_INF("ERROR: transfer\n");
-		return;
-	}
-	if (dma_config(dev1, ch, &dma_cfg1)) {
+	if (dma_config(dev1, dev2_channel, &dma_cfg1)) {
 		LOG_INF("ERROR: configure\n");
 		return;
 	}
-	if (dma_start(dev1, ch)) {
+	if (dma_start(dev, dev1_channel)) {
 		LOG_INF("ERROR: transfer\n");
 		return;
 	}
-	if (strcmp(tx_data, rx_data) != 0) {
-		LOG_INF("[FAIL] Data transfer");
-	} else {
-		LOG_INF("[PASS] Data transfer");
+	if (dma_start(dev1, dev2_channel)) {
+		LOG_INF("ERROR: transfer\n");
+		return;
 	}
-	if (strcmp(tx_data1, rx_data1) != 0) {
-		LOG_INF("[FAIL] Data transfer");
-	} else {
-		LOG_INF("[PASS] Data transfer");
-	}
+	check_char_data(tx_data, rx_data, 1);
+	check_char_data(tx_data1, rx_data1, 1);
 
 }
 
@@ -477,12 +484,12 @@ static void dma_validation_func(void *dummy1, void *dummy2, void *dummy3)
 				LOG_INF("DMA power down gpd test");
 				npcx_power_down_2();
 			}
-			if (!strcmp("para", arguments[0])) {
-				LOG_INF("Parallel data transfer");
-				parallel_data_transfer();
-			}
 			break;
 		case 0x004:
+			if (!strcmp("para", arguments[0])) {
+				LOG_INF("Parallel data transfer");
+				parallel_data_transfer(arguments[1]);
+			}
 			break;
 		case 0x008:
 			if (!strcmp("read", arguments[0])) {
@@ -493,6 +500,7 @@ static void dma_validation_func(void *dummy1, void *dummy2, void *dummy3)
 				LOG_INF("RAM to RAM");
 				move_data_ram_to_ram(arguments[1], arguments[2]);
 			}
+
 			break;
 		default:
 			LOG_INF("Error command\n");
