@@ -1,33 +1,35 @@
-.. _hello_world:
+.. _miwu_auto_test-tests:
 
-Hello World
+MIWU auto Test Suite,
 ###########
 
 Overview
 ********
 
-A simple sample that can be used with any :ref:`supported board <boards>` and
-prints "Hello World" to the console.
+
+This example demonstrates MIWU driver API automated testing.
+
+According to the target board, when the program is executed,
+a pin will be set as the trigger pin for starting verification.
+Whenever a trigger signal is received, the pin will be tested
+according to each flag of the MIWU table.
+
 
 Building and Running
 ********************
-
 This application can be built and executed on QEMU as follows:
 
 .. zephyr-app-commands::
-   :zephyr-app: samples/ci20_testbench/gpio
+   :zephyr-app: npcx-tests/app/miwu_auto_test
    :host-os: unix
-   :board: qemu_x86
+   :board: npcx4m8f_evb/npcxk3m7k_evb
    :goals: run
    :compact:
 
-To build for another board, change "qemu_x86" above to that board's name.
 
 Sample Output
 =============
 
 .. code-block:: console
+    n/a
 
-    Hello World! x86
-
-Exit QEMU by pressing :kbd:`CTRL+A` :kbd:`x`.

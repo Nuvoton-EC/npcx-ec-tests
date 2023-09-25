@@ -1,33 +1,37 @@
-.. _hello_world:
+.. _gpio-tests:
 
-Hello World
+GPIO Test Suite,
 ###########
 
 Overview
 ********
 
-A simple sample that can be used with any :ref:`supported board <boards>` and
-prints "Hello World" to the console.
+
+This sample demonstrates how to use the GPIO driver API.
+
+According to the target board, you can set the gpio group pin and flag to determine
+input/output/push-pull/open-drain. In addition, you can also set the pin interrupt
+related to the miwu table.
+
 
 Building and Running
 ********************
-
 This application can be built and executed on QEMU as follows:
 
 .. zephyr-app-commands::
-   :zephyr-app: samples/ci20_testbench/gpio
+   :zephyr-app: npcx-tests/app/gpio
    :host-os: unix
-   :board: qemu_x86
+   :board: npcx4m8f_evb/npcxk3m7k_evb
    :goals: run
    :compact:
 
-To build for another board, change "qemu_x86" above to that board's name.
 
 Sample Output
 =============
 
 .. code-block:: console
 
-    Hello World! x86
+    gpio -o 0 1 -oh
+    note: GPIO, group 0, pin 1, direction output, flag output high,
+    setting gpio01 is output high
 
-Exit QEMU by pressing :kbd:`CTRL+A` :kbd:`x`.
