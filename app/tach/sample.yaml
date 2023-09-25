@@ -1,16 +1,12 @@
 sample:
-  description: Hello World sample, the simplest Zephyr
-    application
-  name: hello world
+  description: Tachometer sensor module sample, the simplest Zephyr application
+  name: TACH
 common:
     tags: introduction
     integration_platforms:
-      - native_posix
+      - npck3m7k_evb
     harness: console
     harness_config:
-      type: one_line
+      type: multi_line
       regex:
         - "Hello World! (.*)"
-tests:
-  sample.basic.helloworld:
-    tags: introduction
