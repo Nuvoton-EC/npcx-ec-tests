@@ -169,17 +169,17 @@
 	status = "okay";
 	/* Use adc1 channel 14 ~ 25 for 'adc_api' driver tests */
 	pinctrl-0 = <&adc0_chan14_gp27
-				&adc0_chan15_gp31
-				&adc0_chan16_gp62
-				&adc0_chan17_gp63
-				&adc0_chan18_gp67
-				&adc0_chan19_gp70
-				&adc0_chan20_gp22
-				&adc0_chan21_gp23
-				&adc0_chan22_gpc1
-				&adc0_chan23_gp74
-				&adc0_chan24_gp25
-				&adc0_chan25_gp30
+		     &adc0_chan15_gp31
+		     &adc0_chan16_gp62
+		     &adc0_chan17_gp63
+		     &adc0_chan18_gp67
+		     &adc0_chan19_gp70
+		     &adc0_chan20_gp22
+		     &adc0_chan21_gp23
+		     &adc0_chan22_gpc1
+		     &adc0_chan23_gp74
+		     &adc0_chan24_gp25
+		     &adc0_chan25_gp30
 	>;
 
 	pinctrl-names = "default";
