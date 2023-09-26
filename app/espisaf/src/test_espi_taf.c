@@ -37,16 +37,6 @@ LOG_MODULE_REGISTER(espi_saf);
 
 /* eSPI flash parameters */
 #define MAX_TEST_BUF_SIZE		1024u
-#define MAX_FLASH_REQUEST		64u
-#if defined(CONFIG_SOC_SERIES_NPCK3) || defined(CONFIG_SOC_SERIES_NPCX4)
-/* Max Flash tx buffer is 64-byte in NPCK3/NPCX4 EC */
-#define MAX_FLASH_WRITE_REQUEST		64u
-#else
-/* Max Flash tx buffer is 16-byte in NPCX EC */
-#define MAX_FLASH_WRITE_REQUEST		16u
-#endif
-#define MAX_FLASH_ERASE_BLOCK		64u
-#define TARGET_FLASH_REGION		0x72000ul
 
 /* eSPI event */
 #define EVENT_MASK			0x0000FFFFu

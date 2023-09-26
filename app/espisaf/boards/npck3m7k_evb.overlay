@@ -5,58 +5,34 @@
  */
 
 / {
+	chosen {
+		zephyr,shell-uart = &uart1;
+	};
+
 	aliases {
 		/* For samples/drivers/spi_flash */
-		spi-flash0 = &nand_flash;
+		taf-flash = &shd_flash;
 	};
 };
 
-/* Disable shared nor flash. Otherwise, it will stock at initial
- * statge when physical flash is nor-flash.
- */
-&shd_flash {
-    status = "disabled";
-};
-
-/* Add nand flash */
-&spi_fiu0 {
-	nand_flash: w25n01@1 {
-		compatible ="jedec,spi-nand";
-		status = "okay";
-
-		reg = <0>;
-		spi-max-frequency = <50000000>;
-		jedec-id = [ef aa 21];
-
-		/* 1G bits = 128 Mbytes */
-		size = <0x40000000>;
-
-		/* 2048 per page, 2114 per data buffer */
-		page-size = <0x800>;
-		page-num = <0x10000>;
-
-		/* 64 pages = 128K */
-		block-size = <0x20000>;
-		block-num = <0x400>;
-
-		/* bad block management: en-bbm; (not support currently) */
-	};
+&qspi_fiu0 {
+	status = "okay";
 };
 
 &espi0 {
+	rx-plsize = <64>;
+	tx-plsize = <64>;
+
 	espi_taf: espitaf@4000a000 {
 		compatible = "nuvoton,npcx-espi-taf";
 		reg = <0x4000a000 0x2000>;
-		interrupts = <11 3>; /* Interrupt for eSPI Bus */
 
-		/* clocks for eSPI modules */
-		clocks = <&pcc NPCX_CLOCK_BUS_APB3 NPCX_PWDWN_CTL6 7>;
-		/* WUI maps for eSPI signals */
-		espi-rst-wui = <&wui_espi_rst>;
+		mapped-addr = <0x70000000>;
+		max-read-sz = "64B";
+		erase-sz = "SIZE_128KB";
 
 		#address-cells = <1>;
-		#size-cells = <0>;
-		#vw-cells = <3>;
+		#size-cells = <1>;
 		status = "okay";
 	};
 };
