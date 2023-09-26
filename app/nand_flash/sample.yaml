@@ -1,16 +1,18 @@
 sample:
-  description: Hello World sample, the simplest Zephyr
-    application
-  name: hello world
+  name: nand flash
+  description: nand flsh test sample, the simplest Zephyr application
 common:
-    tags: introduction
+    tags: drivers nand_flash
     integration_platforms:
-      - native_posix
+      - npcx4m8f_evb
     harness: console
     harness_config:
-      type: one_line
-      regex:
-        - "Hello World! (.*)"
+      type: multi_line
+
 tests:
-  sample.basic.helloworld:
-    tags: introduction
+  test:
+    tags: nand_flash
+    filter: CONFIG_SPI and
+            CONFIG_FLASH and
+            CONFIG_FLASH_JESD216_API
+    harness: console
