@@ -378,7 +378,7 @@ static void move_data_ram_to_ram(char *ram, char *ch_set)
 		return;
 	}
 }
-static void parallel_data_transfer(char *option)
+static void sync_data_transfer(char *option)
 {
 	uint8_t opt = atoi(option);
 	const char tx_data[] __aligned(align_val) =
@@ -488,7 +488,7 @@ static void dma_validation_func(void *dummy1, void *dummy2, void *dummy3)
 		case 0x004:
 			if (!strcmp("para", arguments[0])) {
 				LOG_INF("Parallel data transfer");
-				parallel_data_transfer(arguments[1]);
+				sync_data_transfer(arguments[1]);
 			}
 			break;
 		case 0x008:
