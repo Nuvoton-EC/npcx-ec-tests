@@ -26,7 +26,9 @@ LOG_MODULE_REGISTER(gdma);
 #define PRIORITY	7
 
 #define DMA0_CTLER			DT_NODELABEL(dma0)
+#ifdef CONFIG_SOC_SERIES_NPCX4
 #define DMA1_CTLER			DT_NODELABEL(dma1)
+#endif
 
 static uint8_t arguments[MAX_ARGUMNETS][MAX_ARGU_SIZE];
 struct k_event dma_event;
@@ -38,18 +40,22 @@ K_THREAD_STACK_DEFINE(temp_stack, TASK_STACK_SIZE);
 /* Get device from device tree */
 static const struct device *const dma_devices[] = {
 	DEVICE_DT_GET(DMA0_CTLER),
+	#ifdef CONFIG_SOC_SERIES_NPCX4
 	DEVICE_DT_GET(DMA1_CTLER),
+	#endif
 };
 
 #define NUM_DMA_DEVICE ARRAY_SIZE(dma_devices)
 #define cal_flash_type_num(ADDR)	ARRAY_SIZE(ADDR)
-#define MRAM(inst)	((const struct dma_npcx_config *)dma_devices[inst]->config)->buttom_mram
-#define INT_FLASH_BASE1_ADDR	0x60000000	/* private flash */
+#define MRAM				0x100B0000	/* buttom of code ram */
+#define INT_FLASH_BASE1_ADDR		0x60000000	/* private flash */
 #define FLASH_BASE1_ADDR		0x68000000	/* shared flash */
 
 
 /* data transfer config */
-static const uint8_t align_val = 2;
+static const uint8_t align_val = 16;
+static struct device *dev;
+static uint8_t ch;
 static struct dma_config dma_cfg = { 0 };
 static struct dma_block_config dma_block_cfg = { 0 };
 static struct dma_config dma_cfg1 = { 0 };
@@ -60,8 +66,8 @@ static uint32_t GDMAMemPool[MOVE_SIZE + 4] __aligned(16);
 
 /* flash to mem config */
 static uint32_t gdma_test_flash_src[] = {
-	INT_FLASH_BASE1_ADDR,	/* internal flash */
-	FLASH_BASE1_ADDR,		/* external flash */
+	INT_FLASH_BASE1_ADDR,
+	FLASH_BASE1_ADDR,
 };
 
 static uint32_t gdma_data_check(const struct device *dev, const uint8_t channel)
@@ -72,7 +78,7 @@ static uint32_t gdma_data_check(const struct device *dev, const uint8_t channel)
 	uint8_t bme = GET_BIT(inst->CONTROL, NPCX_DMACTL_BME);
 	uint8_t dadir = GET_BIT(inst->CONTROL, NPCX_DMACTL_DADIR);
 	uint8_t sadir = GET_BIT(inst->CONTROL, NPCX_DMACTL_SADIR);
-	uint32_t tcnt = inst->TCNT;
+	volatile uint32_t tcnt = inst->TCNT;
 	uint32_t src_ = inst->SRCB;
 	uint32_t dst_ = inst->DSTB;
 	uint32_t ctcnt = inst->CTCNT;
@@ -100,6 +106,7 @@ static uint32_t gdma_data_check(const struct device *dev, const uint8_t channel)
 
 	if (bme) {
 		tcnt <<= 2;
+		LOG_INF("data_check : tcnt %d", tcnt);
 	}
 
 	switch (tws) {
@@ -182,7 +189,7 @@ static uint32_t gdma_data_check(const struct device *dev, const uint8_t channel)
 		}
 		break;
 	}
-
+	LOG_INF("data_check : tcnt %d", tcnt);
 	return tcnt;
 }
 static void check_char_data(const char *tx_data, const char *rx_data, bool enable)
@@ -196,9 +203,24 @@ static void check_char_data(const char *tx_data, const char *rx_data, bool enabl
 		LOG_INF("rx_data : %s", rx_data);
 	}
 }
+static void dma_init(char *dev_num, char *ch_num)
+{
+	uint8_t dev_n = atoi(dev_num);
+	uint8_t ch_n = atoi(ch_num);
+
+	if (dev_n < 2) {
+		dev = (void *)dma_devices[dev_n];
+	} else {
+		LOG_ERR("Only device 0/1 available");
+	}
+	if (ch_n < 2) {
+		ch = ch_n;
+	} else {
+		LOG_ERR("Only channel 0/1 available");
+	}
+}
 
 /* isr event */
-
 static void cb_data_check(const struct device *dma_dev, void *arg,
 				uint32_t channel, int status)
 {
@@ -211,13 +233,8 @@ static void cb_data_check(const struct device *dma_dev, void *arg,
 		LOG_INF("[FAIL] Data check");
 	} else {
 		LOG_INF("[PASS] Data check");
-		LOG_INF("Data transfer completed");
 	}
 }
-
-/*
- * Finished Function
- */
 
 int *npcx_power_down_gpd(const struct device *dev, const uint32_t channel,
 					uint32_t val0, uint32_t val1)
@@ -264,16 +281,13 @@ static void npcx_power_down_2(void)
 	}
 }
 
-
 /* base on chan_blen_transfer */
 static void dma_npcx_api_example(void)
 {
 	/* simple memory(char) to memory(char) example*/
-	char tx_data[] __aligned(align_val) = "It is harder to be kind than to be wise........";
-	char rx_data[48] __aligned(align_val) = { 0 };
-	uint8_t dev_num = 0;
-	uint8_t ch = 0;
-	const struct device *dev = dma_devices[dev_num];
+	const char tx_data[] __aligned(align_val) =
+		"It is harder to be kind than to be wise........It is harder to ";
+	char rx_data[64] __aligned(align_val) = { 0 };
 	memset(rx_data, 0, sizeof(rx_data));
 
 	/* Minimal setting for DMA api */
@@ -297,33 +311,32 @@ static void dma_npcx_api_example(void)
 		LOG_INF("ERROR: transfer\n");
 		return;
 	}
-	check_char_data(tx_data, rx_data, 0);
+	check_char_data(tx_data, rx_data, 1);
+	LOG_INF("rx_data size %d", sizeof(rx_data));
 }
 
-static void read_flash(char *src, char *dst)
+static void dam_flash_to_ram(char *src_set, char *dst_set, char *t_sz_set)
 {
-	uint8_t dev_num = 0;
-	uint8_t opt = atoi(src), ram = atoi(dst);
-	uint8_t ch = 0;
-	const struct device *dev = dma_devices[dev_num];
+	uint8_t opt = atoi(src_set), ram = atoi(dst_set);
+	uint8_t t_sz = atoi(t_sz_set);
 
-	memset((uint8_t *)MRAM(dev_num), 0, MOVE_SIZE + 4);
-	memset((uint8_t *) GDMAMemPool, 0, MOVE_SIZE + 4);
-	uint32_t src1, dst1;
+	memset((uint8_t *)MRAM, 0, MOVE_SIZE + 4);
+	memset((uint8_t *)GDMAMemPool, 0, MOVE_SIZE + 4);
+	uint32_t src, dst;
 
-	src1 = (uint32_t)(gdma_test_flash_src[opt]);
-	dst1 = ram ?  (uint32_t)MRAM(dev_num) : (uint32_t)GDMAMemPool;
+	src = (uint32_t)(gdma_test_flash_src[opt]);
+	dst = ram ?  (uint32_t)MRAM : (uint32_t)GDMAMemPool;
 
 	dma_cfg.channel_direction = MEMORY_TO_MEMORY;
-	dma_block_cfg.source_address = src1;
-	dma_block_cfg.dest_address = dst1;
+	dma_block_cfg.source_address = src;
+	dma_block_cfg.dest_address = dst;
 	dma_block_cfg.block_size = MOVE_SIZE + 4;
 
 	dma_cfg.dma_callback = cb_data_check;
 
 	dma_cfg.head_block = &dma_block_cfg;
 
-	dma_cfg.source_data_size = dma_cfg.dest_data_size = align_val;
+	dma_cfg.source_data_size = dma_cfg.dest_data_size = t_sz;
 	if (dma_config(dev, ch, &dma_cfg)) {
 		LOG_INF("ERROR: configure\n");
 		return;
@@ -335,40 +348,35 @@ static void read_flash(char *src, char *dst)
 
 }
 
-static void move_data_ram_to_ram(char *ram, char *ch_set)
+static void dam_ram_to_ram(char *ram_set, char *t_sz_set)
 {
-	uint8_t dev_num = 0;
-	uint8_t ram_set, ch;
+	uint8_t ram, t_sz;
 
-	ram_set = atoi(ram);
-	ch = atoi(ch_set);
-	const struct device *dev = dma_devices[dev_num];
+	ram = atoi(ram_set);
+	t_sz = atoi(t_sz_set);
 
 	dma_cfg.channel_direction = MEMORY_TO_MEMORY;
 	memset((uint8_t *) GDMAMemPool, 0, MOVE_SIZE + 4);
-	memset((uint8_t *) MRAM(dev_num), 0, MOVE_SIZE + 4);
+	memset((uint8_t *) MRAM, 0, MOVE_SIZE + 4);
 
 	dma_block_cfg.block_size = MOVE_SIZE + 4;
-	if (ram_set) {
-		dma_block_cfg.source_address = (uint32_t)MRAM(dev_num);
+	if (ram) {
+		dma_block_cfg.source_address = (uint32_t)MRAM;
 		dma_block_cfg.dest_address = (uint32_t)GDMAMemPool;
-		for (uint32_t i = 0; i < MOVE_SIZE; i++) {
-			*(uint8_t *)(MRAM(dev_num) + i) = *(uint8_t *)(INT_FLASH_BASE1_ADDR + i);
-		}
 	} else {
 		dma_block_cfg.source_address = (uint32_t)GDMAMemPool;
-		dma_block_cfg.dest_address = (uint32_t)MRAM(dev_num);
-		for (uint32_t i = 0; i < MOVE_SIZE; i++) {
-			*(uint8_t *)(dma_block_cfg.source_address + i) =
-			*(uint8_t *)(INT_FLASH_BASE1_ADDR + i);
-		}
+		dma_block_cfg.dest_address = (uint32_t)MRAM;
+	}
+	for (uint32_t i = 0; i < MOVE_SIZE; i++) {
+		*(uint8_t *)(dma_block_cfg.source_address + i) =
+		*(uint8_t *)(INT_FLASH_BASE1_ADDR + i);
 	}
 
 	dma_cfg.dma_callback = cb_data_check;
 
 	dma_cfg.head_block = &dma_block_cfg;
 
-	dma_cfg.source_data_size = dma_cfg.dest_data_size = align_val;
+	dma_cfg.source_data_size = dma_cfg.dest_data_size = t_sz;
 	if (dma_config(dev, ch, &dma_cfg)) {
 		LOG_INF("ERROR: configure\n");
 		return;
@@ -378,19 +386,12 @@ static void move_data_ram_to_ram(char *ram, char *ch_set)
 		return;
 	}
 }
+/* try use thread to implement parallel */
 static void sync_data_transfer(char *option)
 {
 	uint8_t opt = atoi(option);
-	const char tx_data[] __aligned(align_val) =
-		"It is harder to be kind than to be wise........";
-	char rx_data[48] __aligned(align_val) = { 0 };
-
-	const char tx_data1[] __aligned(align_val) =
-		"........wise be to than kind be to harder is It";
-	char rx_data1[48] __aligned(align_val) = { 0 };
-
-	const struct device *dev, *dev1;
-	uint8_t dev1_channel, dev2_channel;
+	const struct device *dev = dma_devices[0], *dev1 = dma_devices[0];
+	uint8_t dev1_channel = 0, dev2_channel = 0;
 
 	switch (opt) {
 	case 1:
@@ -416,7 +417,8 @@ static void sync_data_transfer(char *option)
 		dev1_channel = dev2_channel = 1;
 		break;
 	case 5:
-		dev = dev1 = dma_devices[0];
+		dev = dma_devices[0];
+		dev1 = dma_devices[0];
 		dev1_channel = 0;
 		dev2_channel = 1;
 		break;
@@ -426,13 +428,21 @@ static void sync_data_transfer(char *option)
 		dev2_channel = 1;
 		break;
 	}
+	const char tx_data[] __aligned(16) =
+		"It is harder to be kind than to be wise........It is "
+		"harder to be kind than to be wise........It is harder to b";
+	char rx_data[128] __aligned(16) = { 0 };
+
+	const char tx_data1[] __aligned(16) =
+		"........wise be to than kind be to harder is It";
+	char rx_data1[48] __aligned(16) = { 0 };
 
 	memset(rx_data, 0, sizeof(rx_data));
 	memset(rx_data1, 0, sizeof(rx_data1));
 
 	dma_cfg.channel_direction = dma_cfg1.channel_direction = MEMORY_TO_MEMORY;
-	dma_cfg.source_data_size = dma_cfg.dest_data_size = align_val;
-	dma_cfg1.source_data_size = dma_cfg1.dest_data_size = align_val;
+	dma_cfg.source_data_size = dma_cfg.dest_data_size = 2;
+	dma_cfg1.source_data_size = dma_cfg1.dest_data_size = 2;
 
 	dma_block_cfg.block_size = sizeof(tx_data);
 	dma_block_cfg1.block_size = sizeof(tx_data1);
@@ -465,7 +475,6 @@ static void sync_data_transfer(char *option)
 	}
 	check_char_data(tx_data, rx_data, 1);
 	check_char_data(tx_data1, rx_data1, 1);
-
 }
 
 static void dma_validation_func(void *dummy1, void *dummy2, void *dummy3)
@@ -486,21 +495,26 @@ static void dma_validation_func(void *dummy1, void *dummy2, void *dummy3)
 			}
 			break;
 		case 0x004:
-			if (!strcmp("para", arguments[0])) {
-				LOG_INF("Parallel data transfer");
+			if (!strcmp("sync", arguments[0])) {
+				LOG_INF("sync data transfer");
 				sync_data_transfer(arguments[1]);
 			}
 			break;
 		case 0x008:
-			if (!strcmp("read", arguments[0])) {
-				LOG_INF("DMA read flash");
-				read_flash(arguments[1], arguments[2]);
-			}
 			if (!strcmp("ram", arguments[0])) {
 				LOG_INF("RAM to RAM");
-				move_data_ram_to_ram(arguments[1], arguments[2]);
+				dam_ram_to_ram(arguments[1], arguments[2]);
 			}
-
+			if (!strcmp("init", arguments[0])) {
+				LOG_INF("DMA init device and channel");
+				dma_init(arguments[1], arguments[2]);
+			}
+			break;
+		case 0x010:
+			if (!strcmp("flash", arguments[0])) {
+				LOG_INF("Flash to RAM");
+				dam_flash_to_ram(arguments[1], arguments[2], arguments[3]);
+			}
 			break;
 		default:
 			LOG_INF("Error command\n");
@@ -545,6 +559,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 	SHELL_CMD_ARG(c1, NULL, "dma c1 arg0", dma_command, 2, 0),
 	SHELL_CMD_ARG(c2, NULL, "dma c2 arg0 arg1", dma_command, 3, 0),
 	SHELL_CMD_ARG(c3, NULL, "dma c3 arg0 arg1 arg2", dma_command, 4, 0),
+	SHELL_CMD_ARG(c4, NULL, "dma c4 arg0 arg1 arg2 arg3", dma_command, 5, 0),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 );
 SHELL_CMD_REGISTER(dma, &sub_dma, "nuvoton dma validation", NULL);
