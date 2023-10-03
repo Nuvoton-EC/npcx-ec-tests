@@ -4,3 +4,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+
+ / {
+	aliases {
+		/* For i2c test suites */
+		i2c-0 = &i2c1_a;
+		i2c-1 = &i2c1_b;
+		i2c-2 = &i2c2_a;
+		i2c-3 = &i2c2_b;
+		i2c-4 = &i2c3_a;
+		i2c-5 = &i2c3_b;
+		i2c-6 = &i2c4_a;
+		i2c-7 = &i2c4_b;
+		i2c-8 = &i2c5_a;
+		i2c-9 = &i2c6_a;
+	};
+};
+
+&i2c1_a {
+	status = "okay";
+	pinctrl-0 = <&i2c1_a_sda_scl_gp22_17>;
+	pinctrl-names = "default";
+	clock-frequency = <I2C_BITRATE_FAST>;
+};
+
+&i2c_ctrl1 {
+	status = "okay";
+};
