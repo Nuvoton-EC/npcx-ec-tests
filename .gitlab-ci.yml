@@ -1,0 +1,57 @@
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  image: $DOCKER_IMAGE
+  services:
+    - name: docker:dind
+      alias: docker
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ''
+  script:
+    - echo "Welcome, $GITLAB_USER_LOGIN!" 
+    - set -e exec
+    - exec git diff $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA | ~/zephyrproject/zephyr/scripts/checkpatch.pl -q
+  tags:
+    - docker
+  only:
+    - triggers
+    - master
+
+.test_template:
+  stage: test
+  image: $DOCKER_IMAGE
+  script:
+    - cd ~/zephyrproject/zephyr
+    - git remote add ci20_zephyr $CI20_ZEPHYR_REPO_URL
+    - git remote update
+    - git checkout $BRANCH_NAME
+    - cd ..
+    - git clone $NPCX_TEST_REPO_URL
+    - cd ~/zephyrproject
+    - west update
+    - cd ~/zephyrproject/npcx_tests/app/$MODULE_NAME/
+    - west build -p always -b $BOARD_NAME > $CI_PROJECT_DIR/build.log 2>&1
+    - mv ~/zephyrproject/npcx_tests/app/$MODULE_NAME/build/zephyr/zephyr.npcx.bin $CI_PROJECT_DIR
+  tags:
+    - docker
+  artifacts:
+    when: always 
+    paths:
+     - $CI_PROJECT_DIR/
+    expire_in: 1 week
+      
+npck3m7k_evb:
+  extends: .test_template
+  parallel:
+      matrix:
+        - BRANCH_NAME: "npcx_k3_0920"
+          BOARD_NAME: "npck3m7k_evb"
+          MODULE_NAME: ["adc", "bbram", "dma","espi", "espisaf", "gpio", "gpio_all_io_test", "kscan", "miwu_auto_test", "nand_flash","nor_flash", "peci", "ps2","pwm", "sha", "smbm","smbm_tmp100", "smbs", "tach"]
+  only:
+    - triggers
+
