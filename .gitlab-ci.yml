@@ -21,6 +21,9 @@ build:
   only:
     - triggers
     - master
+  except:
+    changes:
+      - .gitlab-ci.yml
 
 .test_template:
   stage: test
