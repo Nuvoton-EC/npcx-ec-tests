@@ -708,6 +708,7 @@ static int miwu_IOresult(const struct shell *shell, size_t argc, char **argv)
 }
 
 #define NPCX_HIF_TYPE_LPC 1
+#define NPCX_EPURST_CTL_EPUR2_EN 3
 static int gpio_test_on_cofing(const struct shell *shell, size_t argc, char **argv)
 {
 #if defined(CONFIG_SOC_SERIES_NPCX4)
