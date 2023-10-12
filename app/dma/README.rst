@@ -29,17 +29,17 @@ Validation item
 - transfer data from flash to ram
 - transfer data from ram to ram
 - power down
-- transfer data in async
+- transfer data in sync
 
 Building and Running
 ********************
-Build and flash the sample as follows, changing ``npcx4m8f_evb`` for
-your board:
+Build and flash the sample as follows, changing ``npcxk3m7k_evb``
+``npcx4m8f_evb`` for your board:
 
 .. zephyr-app-commands::
    :zephyr-app: npcx-tests/app/dma
    :host-os: unix
-   :board: npcx4m8f_evb
+   :board: npcxk3m7k_evb/npcx4m8f_evb
    :goals: run
    :compact:
 
@@ -50,30 +50,29 @@ Sample Output
 .. code-block:: console
 
     # choose which device and channel
-    dma init $1 $2
+    dma c3 init $1 $2
     note: $1: device 0 or 1
           $2: channel 0 or 1
     # api example for other module reference to use dma
-    dma c0
+    dma ex
 
     # dma power down test
-    dma c1 gpd
+    dma gpd
 
-    # dma transfer data in parallel with different device and channel test
+    # dma transfer data in sync with different device and channel test
     # case 1 ~ 4 different device with different channel
     # case 5 ~ 6 same device with different channel
-    dma c2 para 1
-    dma c2 para 2
+    dma sync 1
+    dma sync 2
     ...
-    dma c2 para 6
+    dma sync 6
 
+    # dma transfer data from ram to ram
+    dma ram $1 $2
+    note: $1: 0 is static area to Code ram, 1 is Code ram to static area
+          $2: 1/2/4/16 : 1B/1W/1DW/Burst Mode with DW
     # dma transfer data from flash to ram
-    dma c3 flash $1 $2 $3
+    dma flash $1 $2 $3
     note: $1: 0 is internal flash, 1 is external flash.
           $2: 0 is GDMAMemPool, 1 is code ram
           $3: 1/2/4/16 : 1B/1W/1DW/Burst Mode with DW
-
-   # dma transfer data from ram to ram
-    dma c3 ram $1 $2
-    note: $1: 0 is static area to Code ram, 1 is Code ram to static area
-          $2: 1/2/4/16 : 1B/1W/1DW/Burst Mode with DW
