@@ -21,6 +21,7 @@ build:
   except:
     changes:
       - .gitlab-ci.yml
+      - "*.sh"
 
 .test_template:
   stage: test
