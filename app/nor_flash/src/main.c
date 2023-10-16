@@ -440,7 +440,8 @@ static int nor_flash_erase(const struct device *flash_dev, off_t addr, size_t si
 		temp_size -= read_size;
 	}
 
-	shell_info(test_objs.shell, "Flash erase succeeded!");
+	shell_info(test_objs.shell, "[PASS] Flash erase succeeded!");
+	shell_info(test_objs.shell, "[GO]");
 	return 0;
 }
 
@@ -549,7 +550,8 @@ static int nor_flash_write(const struct device *flash_dev, off_t addr, size_t si
 		temp_size -= write_size;
 	}
 
-	shell_info(test_objs.shell, "Flash write succeeded!");
+	shell_info(test_objs.shell, "[PASS] Flash write succeeded!");
+	shell_info(test_objs.shell, "[GO]");
 	return 0;
 }
 
