@@ -91,6 +91,14 @@ static const char * const mode_tags[] = {
 #define shell_printk(...) \
 	shell_fprintf(test_objs.shell, SHELL_NORMAL, ##__VA_ARGS__)
 
+#if defined(CONFIG_SOC_SERIES_NPCK3)
+/* WP_IF = DEV_CTL3[3] */
+#define GET_WPIF() (((*(volatile uint8_t*)(0x400C3004)) >> 3) & 0x1)
+#else
+/* WP_IF = DEV_CTL4[5] */
+#define GET_WPIF() (((*(volatile uint8_t*)(0x400C3006)) >> 5) & 0x1)
+#endif
+
 static void summarize_dw1(const struct jesd216_param_header *php,
 			  const struct jesd216_bfp *bfp)
 {
@@ -815,17 +823,57 @@ static int nor_flash_write_sts_reg_handler(const struct shell *shell, size_t arg
 
 static int nor_flash_en_wp_handler(const struct shell *shell, size_t argc, char **argv)
 {
-
+	uint8_t wp_en = GET_WPIF();
+	uint8_t hif_typ;
+	struct scfg_reg *inst_scfg = (struct scfg_reg *)(NPCX_SCFG_REG_ADDR);
 	struct npcx_ex_ops_qspi_oper_in oper_in = {
 		.enable = true,
 		.mask = NPCX_EX_OP_INT_FLASH_WP,
 	};
+
+	shell_info(shell, "Default WP_IF is %d", wp_en);
 
 	/* Start to test */
 	test_objs.shell = shell;
 	flash_ex_op(test_objs.cur_dev, FLASH_NPCX_EX_OP_SET_QSPI_OPER,
 				(uintptr_t)&oper_in, NULL);
 	shell_info(shell, "SPI Spec is %d, %08x", oper_in.enable, oper_in.mask);
+
+	/* Apply flash_read() to set QSPI bus operation */
+	nor_flash_read(test_objs.cur_dev, 0, 10);
+
+	if (wp_en == 0x0 && oper_in.enable == true) {
+		wp_en = GET_WPIF();
+		shell_info(shell, "After write protect, WP_IF: %d", wp_en);
+
+		if (oper_in.enable == true && wp_en != 0x0) {
+			shell_info(shell, "[PASS] set WP_IF");
+		} else {
+			shell_info(shell, "[FAIL] set WP_IF");
+
+			hif_typ = GET_FIELD(inst_scfg->DEVCNT, NPCX_DEVCNT_HIF_TYP_SEL_FIELD);
+
+			shell_info(shell, "HIF_TYP is %#x", hif_typ);
+#if defined(CONFIG_SOC_SERIES_NPCK3)
+			/* In NPCK3, before setting WP_IF bit,
+			 * host interface must be either LPC or ESPI mode.
+			 *
+			 * LPC mode: check LRESET=1.
+			 *
+			 * ESPI mode: check PLTRST_VW_SEL in DEVCTL2[5].
+			 * 	PLTRST_VW_SEL=0: check LRESET=1.
+			 * 	PLTRST_VW_SEL=1: Check Virtual-Wire signal=1.
+			 */
+			if (hif_typ == NPCX_HIF_TYPE_ESPI_SHI) {
+				/* Check npck3 espi reset source in DEVCTL2[5] */
+				shell_info(shell, "PLTRST_VW_SEL is %d",
+					(((*(volatile uint8_t*)(0x400C3003)) >> 5) & 0x1));
+
+			}
+#endif /* CONFIG_SOC_SERIES_NPCK3 */
+		}
+	}
+
 	return 0;
 }
 
