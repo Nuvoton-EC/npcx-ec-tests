@@ -29,7 +29,7 @@
 
 		mapped-addr = <0x70000000>;
 		max-read-sz = "64B";
-		erase-sz = "SIZE_128KB";
+		erase-sz = "SIZE_4KB";
 
 		#address-cells = <1>;
 		#size-cells = <1>;
