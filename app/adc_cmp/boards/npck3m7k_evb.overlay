@@ -1,0 +1,78 @@
+/*
+ * Copyright (c) 2023 Nuvoton Technology Corporation.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+
+/ {
+	adc_cmp {
+		npcx_adc0_ch0: adc0_ch0_cmp {
+			compatible = "nuvoton,adc-cmp";
+			io-channels = <&adc0 0>;
+			comparison = "ADC_CMP_NPCX_GREATER";
+			threshold-mv = <1800>;
+		};
+		npcx_adc0_ch1: adc0_ch1_cmp {
+			compatible = "nuvoton,adc-cmp";
+			io-channels = <&adc0 1>;
+			comparison = "ADC_CMP_NPCX_GREATER";
+			threshold-mv = <1800>;
+		};
+		npcx_adc0_ch2: adc0_ch2_cmp {
+			compatible = "nuvoton,adc-cmp";
+			io-channels = <&adc0 2>;
+			comparison = "ADC_CMP_NPCX_GREATER";
+			threshold-mv = <1800>;
+		};
+	};
+};
+
+
+
+&adc0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	status = "okay";
+	/* Use adc0 channel 0~11 for 'adc_api' driver tests */
+	pinctrl-0 = <&adc0_chan0_gp90
+                     &adc0_chan1_gp91
+                     &adc0_chan2_gp92
+                     &adc0_chan3_gp93
+                     &adc0_chan4_gp05
+                     &adc0_chan5_gp04
+                     &adc0_chan6_gp03
+                     &adc0_chan7_gp07
+                     &adc0_chan8_gph2
+                     &adc0_chan9_gph1
+                     &adc0_chan10_gph0
+                     &adc0_chan11_gpg7>;
+	pinctrl-names = "default";
+
+	channel@0 {
+		reg = <0>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,vref-mv = <3300>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <10>;
+	};
+	channel@1 {
+		reg = <1>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,vref-mv = <3300>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <10>;
+	};
+	channel@2 {
+		reg = <2>;
+		zephyr,gain = "ADC_GAIN_1";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,vref-mv = <3300>;
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,resolution = <10>;
+	};
+};
+

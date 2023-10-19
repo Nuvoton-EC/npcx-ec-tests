@@ -172,7 +172,7 @@ static void adc_check_conversion_result(char *input, char *channel)
 
 	if (vref_mv == ADC_VOLTAGE_REFERENCE_3300) {
 		if ((ch_dat <= (input_signal + ADC_3300VFS_ACCURACY)) &&
-			(input_signal >= (input_signal - ADC_3300VFS_ACCURACY))) {
+		    (ch_dat >= (input_signal - ADC_3300VFS_ACCURACY))) {
 			LOG_INF("[PASS]Vref 3300, ADC%d Vi: %d\n", ch,
 			adc_channels[ch].channel_id);
 		} else {
@@ -226,6 +226,10 @@ static void adc_validation_func(void *dummy1, void *dummy2, void *dummy3)
 			}
 
 			if (!strcmp("3300", arguments[0])) {
+				adc_read_func(arguments[1]);
+				adc_check_conversion_result(arguments[0], arguments[1]);
+			}
+			if (!strcmp("2816", arguments[0])) {
 				adc_read_func(arguments[1]);
 				adc_check_conversion_result(arguments[0], arguments[1]);
 			}

@@ -5,6 +5,7 @@
  */
 #include <stdlib.h>
 #include <zephyr/device.h>
+#include <zephyr/drivers/adc.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/drivers/sensor/adc_cmp_npcx.h>
 #include <zephyr/sys/atomic.h>
@@ -30,16 +31,19 @@ LOG_MODULE_REGISTER(main);
 #define ADC0_CH0_CMP_NODE		DT_NODELABEL(npcx_adc0_ch0)
 #define ADC0_CH1_CMP_NODE		DT_NODELABEL(npcx_adc0_ch1)
 #define ADC0_CH2_CMP_NODE		DT_NODELABEL(npcx_adc0_ch2)
+#if !defined(CONFIG_SOC_SERIES_NPCK3)
 #define ADC0_CH3_CMP_NODE		DT_NODELABEL(npcx_adc0_ch3)
 #define ADC0_CH4_CMP_NODE		DT_NODELABEL(npcx_adc0_ch4)
 #define ADC0_CH5_CMP_NODE		DT_NODELABEL(npcx_adc0_ch5)
+#if defined(CONFIG_SOC_SERIES_NPCX4)
 #define ADC1_CH0_CMP_NODE		DT_NODELABEL(npcx_adc1_ch0)
 #define ADC1_CH1_CMP_NODE		DT_NODELABEL(npcx_adc1_ch1)
 #define ADC1_CH2_CMP_NODE		DT_NODELABEL(npcx_adc1_ch2)
 #define ADC1_CH3_CMP_NODE		DT_NODELABEL(npcx_adc1_ch3)
 #define ADC1_CH4_CMP_NODE		DT_NODELABEL(npcx_adc1_ch4)
 #define ADC1_CH5_CMP_NODE		DT_NODELABEL(npcx_adc1_ch5)
-
+#endif
+#endif
 
 enum threshold_state {
 	THRESHOLD_UPPER,
@@ -62,16 +66,21 @@ static const struct device *regs[] = {
 	DEVICE_DT_GET(ADC0_CH0_CMP_NODE),
 	DEVICE_DT_GET(ADC0_CH1_CMP_NODE),
 	DEVICE_DT_GET(ADC0_CH2_CMP_NODE),
+#if !defined(CONFIG_SOC_SERIES_NPCK3)
 	DEVICE_DT_GET(ADC0_CH3_CMP_NODE),
 	DEVICE_DT_GET(ADC0_CH4_CMP_NODE),
 	DEVICE_DT_GET(ADC0_CH5_CMP_NODE),
+#if defined(CONFIG_SOC_SERIES_NPCX4)
 	DEVICE_DT_GET(ADC1_CH0_CMP_NODE),
 	DEVICE_DT_GET(ADC1_CH1_CMP_NODE),
 	DEVICE_DT_GET(ADC1_CH2_CMP_NODE),
 	DEVICE_DT_GET(ADC1_CH3_CMP_NODE),
 	DEVICE_DT_GET(ADC1_CH4_CMP_NODE),
 	DEVICE_DT_GET(ADC1_CH5_CMP_NODE),
+#endif
+#endif
 };
+
 
 void enable_threshold(const struct device *dev, bool enable)
 {
@@ -146,9 +155,8 @@ void threshold_upper_trigger_handler(const struct device *dev,
 {
 	enable_threshold(dev, false);
 
+	LOG_INF("%s ADC channel\n", dev->name);
 	LOG_INF("ADC CMP: Upper threshold detected\n");
-
-	set_upper_threshold(dev);
 
 	enable_threshold(dev, true);
 }
@@ -158,6 +166,7 @@ void threshold_lower_trigger_handler(const struct device *dev,
 {
 	enable_threshold(dev, false);
 
+	LOG_INF("%s ADC channel\n", dev->name);
 	LOG_INF("ADC CMP: Lower threshold detected\n");
 
 	enable_threshold(dev, true);
@@ -183,14 +192,8 @@ static void adc_cmp_trigger_select(char *channel)
 	if (err) {
 		LOG_INF("ADC CMP: Error setting handler\n");
 	}
-
+	set_upper_threshold(regs[ch]);
 	enable_threshold(regs[ch], true);
-
-	while (IS_RUNNING) {
-		k_sleep(K_MSEC(1));
-	}
-
-	LOG_INF("ADC CMP: Exiting application\n");
 }
 
 static void adc_cmp_trigger_disable(char *channel)

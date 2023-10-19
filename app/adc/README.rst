@@ -21,7 +21,7 @@ This application can be built and executed on QEMU as follows:
 .. zephyr-app-commands::
    :zephyr-app: npcx-tests/app/adc
    :host-os: unix
-   :board: npcx4m8f_evb/npcxk3m7k_evb
+   :board: npcx4m8f_evb/npck3m7k_evb
    :goals: run
    :compact:
 
