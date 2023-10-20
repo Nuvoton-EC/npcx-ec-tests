@@ -352,7 +352,7 @@ void espi_taf_handler(const struct device *dev, struct taf_handle_data *pckt,
 	pckt->taf_tag = data_ptr->tag;
 	pckt->address = data_ptr->addr;
 	pckt->buf = tx_buf_data;
-	memcpy(pckt->src, data_ptr->src, pckt->length);
+	memcpy(pckt->src, data_ptr->src, sizeof(pckt->src));
 }
 
 /* eSPI TAF event handler */
