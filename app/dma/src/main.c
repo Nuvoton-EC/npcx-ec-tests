@@ -72,7 +72,9 @@ static uint8_t passFlag;
 static uint32_t gdma_test_flash_src[] = {
 	INT_FLASH_BASE1_ADDR,
 	FLASH_BASE1_ADDR,
+	#ifdef CONFIG_SOC_SERIES_NPCK3
 	BACKUP_FLASH_BASE1_ADDR
+	#endif
 };
 /* gdmaerr config */
 #define INVALID_ADDR	0x10050000
@@ -89,7 +91,6 @@ static uint32_t gdma_data_check(const struct device *dev, const uint8_t channel)
 	uint32_t src_ = inst->SRCB;
 	uint32_t dst_ = inst->DSTB;
 	uint32_t ctcnt = inst->CTCNT;
-	LOG_INF("tcnt addr %x", (uint32_t)&inst->TCNT);
 	volatile uint8_t *dst_B, *src_B;
 	volatile uint16_t *dst_W, *src_W;
 	volatile uint32_t *dst_DW, *src_DW;
@@ -114,7 +115,6 @@ static uint32_t gdma_data_check(const struct device *dev, const uint8_t channel)
 	if (bme) {
 		tcnt <<= 2;
 	}
-	LOG_INF("tcnt before :%d", tcnt);
 	switch (tws) {
 	case 0:
 		LOG_INF("Byte mode | ");
@@ -178,7 +178,6 @@ static uint32_t gdma_data_check(const struct device *dev, const uint8_t channel)
 		} while (tcnt != 0);
 		break;
 	}
-	LOG_INF("tcnt after :%d", tcnt);
 	return tcnt;
 }
 
@@ -221,7 +220,7 @@ static void cb_power_save(const struct device *dma_dev, void *arg,
 		LOG_INF("[FAIL][GDMA]: ch-%d power save failed.", channel);
 	}
 }
-
+#ifdef CONFIG_SOC_SERIES_NPCK3
 static void cb_gdmaerr(const struct device *dma_dev, void *arg,
 				uint32_t channel, int status)
 {
@@ -257,7 +256,7 @@ static void dma_gdmaerr(const struct shell *shell, size_t argc, char **argv)
 		return;
 	}
 }
-
+#endif
 
 static void check_char_data(const char *tx_d, const char *rx_d, bool enable)
 {
