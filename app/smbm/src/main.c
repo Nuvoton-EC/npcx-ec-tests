@@ -106,6 +106,7 @@ static void smb_thread_entry(void)
 		return;
 	}
 
+
 	if (smb_cfg != smb_cfg_tmp) {
 		LOG_INF("I2C get_config returned invalid config\n");
 		return;
@@ -351,6 +352,86 @@ static void smb_thread_entry(void)
 				}
 
 				LOG_INF(" - 6: verify i2c_write suspend passed\n");
+				LOG_INF("[GO]\r\n");
+			}
+
+			if (test_objs.cmd1_args.val == 14) {
+
+				smb_cfg = I2C_SPEED_SET(I2C_SPEED_FAST) | I2C_MODE_CONTROLLER;
+
+				/* 1. Verify i2c_configure() */
+				if (i2c_configure(smb_dev, smb_cfg)) {
+					LOG_INF("I2C config failed\n");
+					return;
+				}
+
+				/* 2. Verify i2c_get_config() */
+				if (i2c_get_config(smb_dev, &smb_cfg_tmp)) {
+					LOG_INF("I2C get_config failed\n");
+					return;
+				}
+
+				if (smb_cfg != smb_cfg_tmp) {
+					LOG_INF("I2C get_config returned invalid config\n");
+					return;
+				}
+
+				/* 2. Verify i2c_write_read() */
+				offset = 0x00;
+				datas[0] = offset;
+				if (i2c_write_read(smb_dev, addr,
+							&datas[0], 1,
+							&datas[1], 2)) {
+					LOG_INF("Fail to test 2\n");
+					return;
+				}
+
+				raw = (datas[1] << 4) + (datas[2] >> 4);
+				temp = raw / 16;
+				LOG_INF(" -    SIM TMP100: temp reg %02x: %02x%02x,"
+					" temp is %d deg\n",
+					datas[0], datas[2], datas[1], temp);
+
+				LOG_INF("[GO]\r\n");
+			}
+
+			if (test_objs.cmd1_args.val == 15) {
+
+				smb_cfg = I2C_SPEED_SET(I2C_SPEED_FAST_PLUS) | I2C_MODE_CONTROLLER;
+
+				/* 1. Verify i2c_configure() */
+				if (i2c_configure(smb_dev, smb_cfg)) {
+					LOG_INF("I2C config failed\n");
+					return;
+				}
+
+				/* 2. Verify i2c_get_config() */
+				if (i2c_get_config(smb_dev, &smb_cfg_tmp)) {
+					LOG_INF("I2C get_config failed\n");
+					return;
+				}
+
+				if (smb_cfg != smb_cfg_tmp) {
+					LOG_INF("I2C get_config returned invalid config\n");
+					return;
+				}
+
+				/* 2. Verify i2c_write_read() */
+				offset = 0x00;
+				datas[0] = offset;
+				if (i2c_write_read(smb_dev, addr,
+							&datas[0], 1,
+							&datas[1], 2)) {
+					LOG_INF("Fail to test 2\n");
+					return;
+				}
+
+				raw = (datas[1] << 4) + (datas[2] >> 4);
+				temp = raw / 16;
+				LOG_INF(" -    SIM TMP100: temp reg %02x: %02x%02x,"
+					" temp is %d deg\n",
+					datas[0], datas[2], datas[1], temp);
+
 				LOG_INF("[GO]\r\n");
 			}
 			break;
