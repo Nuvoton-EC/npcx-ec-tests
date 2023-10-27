@@ -11,285 +11,365 @@
 
 LOG_MODULE_REGISTER(main);
 
-const struct device *const kscan_dev = DEVICE_DT_GET(DT_NODELABEL(kbd));
-
-#define TASK_STACK_SIZE		 1024
-#define PRIORITY                7
-static struct k_thread temp_id;
-K_THREAD_STACK_DEFINE(temp_stack, TASK_STACK_SIZE);
-
 #define MAX_MATRIX_KEY_COLS 13
 #define MAX_MATRIX_KEY_ROWS 8
+#define ROW_IDX_MAX (MAX_MATRIX_KEY_ROWS - 1)
 
-static uint8_t Resp[21];
+/* Key pressed callback count  = pressed + release callback = 2 */
+#define KEY_PRESS_CB_CNT 2
+
+const struct device *const kscan_dev = DEVICE_DT_GET(DT_NODELABEL(kscan_input));
+static K_SEM_DEFINE(sem_kscan, 0, 1);
+const struct shell *sh_ptr;
+
+enum kbscan_mode {
+	KBSCAN_MD_NONE = 0,
+	KBSCAN_MD_SCAN,
+	KBSCAN_MD_GHOST,
+} tst_mode;
+
+enum ghost_mode {
+	GHOST_MD_LEFT_UP = 0,
+	GHOST_MD_RIGHT_BUTTOM,
+	GHOST_MD_MAX,
+} ghost_mode;
+
+struct key_event {
+	/* Callback count of each key */
+	uint8_t cb_cnt;
+	/* Key event status (pressed -> released) */
+	bool matrix_state[2];
+	/* Information for multi key pressed at the same timeup	 */
+	uint8_t col;
+	uint8_t row;
+};
+
+struct kbscan_data {
+	/* Event status of each row(KBSIN) */
+	struct key_event event[MAX_MATRIX_KEY_ROWS];
+	uint8_t scan_col_idx;
+	/* Key event count */
+	uint8_t key_evt_cnt;
+};
+
+struct kbscan_data kbd_data;
+
+static void set_tst_mode(enum kbscan_mode mode)
+{
+	tst_mode = mode;
+}
+
+static void reset_kbscan_data(void)
+{
+	memset(&kbd_data, 0, sizeof(struct kbscan_data));
+}
+
+static void reset_kbscan_event(void)
+{
+	memset(&kbd_data.event, 0, sizeof(kbd_data.event));
+}
+
 static void kb_callback(const struct device *dev, uint32_t row, uint32_t col,
 			bool pressed)
 {
+	struct key_event *p_event;
+
 	ARG_UNUSED(dev);
 
-	if (Resp[0] > 20) {
-		LOG_INF("[FAIL] Over CmdResp buffer\n");
-		return;
+	if (sh_ptr == NULL) {
+		LOG_INF("(CB) row: %d, col: %d, pressed: %d", row, col, pressed);
+	} else {
+		shell_info(sh_ptr, "(CB) row: %d, col: %d, pressed: %d", row, col, pressed);
 	}
-	Resp[Resp[0]] = 0x0;
-	if (pressed) {
-		Resp[Resp[0]] = 0x80;
-	}
-	Resp[Resp[0]] |= (row<<4)&0x70;
-	Resp[Resp[0]] |= (col<<0)&0x0F;
-	LOG_INF("Resp[%02x]:%02x\n", Resp[0], Resp[Resp[0]]);
-	Resp[0]++;
-}
-/* Cmd[0] : commad type
- * Cmd[1~10] : command argunment
- */
-static uint8_t Cmd[11];
-static void check_resp(void)
-{
-	uint8_t ok, i, j, tmp;
 
-	if (Cmd[0] == 0) { /* stree test one by one keys */
-		ok = 1;
-		if (Resp[0] != 3) {
-			ok = 0;
-			LOG_INF("[FAIL](%02x)Key lost response\n", Resp[0]);
+	if (tst_mode == KBSCAN_MD_SCAN) {
+		p_event = &kbd_data.event[row];
+
+		/* Record each key pressed status */
+		p_event->col = col;
+		p_event->row = row;
+		p_event->matrix_state[p_event->cb_cnt] = pressed;
+		p_event->cb_cnt++;
+
+		/* Check release event the same col */
+		if (p_event->cb_cnt == KEY_PRESS_CB_CNT &&
+		    p_event->col != col) {
+			p_event->col = 0xff;
 		}
-		if (((Resp[1] & 0x80) != 0x80) || ((Resp[2] & 0x80) != 0x00)) {
-			ok = 0;
-			LOG_INF("[FAIL](%02x-%02x) Key press and release abornal\n",
-				Resp[1], Resp[2]);
+
+		/* Check operation done condition */
+		if ((row == ROW_IDX_MAX && p_event->cb_cnt == KEY_PRESS_CB_CNT) ||
+		    kbd_data.scan_col_idx != col) {
+			set_tst_mode(KBSCAN_MD_NONE);
+			k_sem_give(&sem_kscan);
 		}
-		Resp[1] &= 0x7F;
-		Resp[2] &= 0x7F;
-		if (Resp[1] != Resp[2]) {
-			ok = 0;
-			LOG_INF("[FAIL](%02x-%02x) press and release not same key\n",
-				Resp[1], Resp[2]);
-		}
-		if (Resp[1] != Cmd[1]) {
-			ok = 0;
-			LOG_INF("[FAIL](%02x->%02x) response key incorrect\n",
-				Cmd[1], Resp[1]);
-		}
-		if (ok) {
-			LOG_INF("[PASS](%02x)\n", Cmd[1]);
-		}
-		return;
-	}
-	if (Cmd[0] == 1) { /* Ghost Keys validation*/
-		if ((Cmd[1] != 0) && (Resp[0] != 7)) {
-			LOG_INF("[FAIL] lost key\n");
+	} else if (tst_mode == KBSCAN_MD_GHOST) {
+		if (kbd_data.key_evt_cnt >= MAX_MATRIX_KEY_ROWS) {
+			shell_info(sh_ptr, "[FAIL] key event buffer full");
 			return;
 		}
-		if (Cmd[1] == 0x01) {
-			if (((Resp[1] & 0x7f) == (Resp[4] & 0x7f)) &&
-			((Resp[2] & 0x7f) == (Resp[5] & 0x7f)) &&
-			((Resp[3] & 0x7f) == (Resp[6] & 0x7f))) {
-				if (((Resp[4] & 0x0F) == (Resp[5] & 0x0F)) &&
-				((Resp[4] & 0xF0) == (Resp[6] & 0xF0))) {
-					LOG_INF("[PASS]\n");
-					return;
-				}
-			}
-			LOG_INF("[FAIL] incorrect\n");
-		}
-		if (Cmd[1] == 0x02) {
-			if (((Resp[1] & 0x7f) == (Resp[4] & 0x7f)) &&
-			((Resp[2] & 0x7f) == (Resp[5] & 0x7f)) &&
-			((Resp[3] & 0x7f) == (Resp[6] & 0x7f))) {
-				if (((Resp[4] & 0xF0) == (Resp[6] & 0xF0)) &&
-				((Resp[5] & 0x0F) == (Resp[6] & 0x0F))) {
-					LOG_INF("[PASS]\n");
-					return;
-				}
-			}
-			LOG_INF("[FAIL] incorrect\n");
-		}
-		if (Cmd[1] == 0x00) {
-			LOG_INF("[%s]\n", (Resp[0] == 1) ? "PASS" : "FAIL");
-		}
-		return;
-	}
-	if (Cmd[0] == 2) { /* multi-key press*/
-		ok = 1;
-		if ((Cmd[1] * 2) != (Resp[0] - 1)) {
-			LOG_INF("[FAIL] (%02x) lost some key\n", Resp[0]);
-			ok = 0;
-		}
-		for (j = 2; j < Cmd[1]; j++) {
-			tmp = 0;
-			for (i = 1; i < Resp[0]; i++) {
-				if (Cmd[j] == (Resp[i] & 0x7F)) {
-					if (Resp[i] & 0x80) {
-						tmp += 0x10; /* press */
-					} else {
-						tmp += 0x01; /* release */
-					}
-					continue;
-				}
-			}
-			if (tmp != 0x11) {
-				LOG_INF("[FAIL] (%02x) key not found or lost\n", Cmd[j]);
-				ok = 0;
-			}
-		}
-		if (ok) {
-			LOG_INF("[PASS] mulit-keys: %02x\n", Cmd[1]);
-		}
-		{
-			extern void make_keyplan(void);
-			make_keyplan();
+
+		p_event = &kbd_data.event[kbd_data.key_evt_cnt];
+
+		p_event->col = col;
+		p_event->row = row;
+		p_event->matrix_state[0] = pressed;
+		kbd_data.key_evt_cnt++;
+
+		/* 3 key pressed operation = 6 event */
+		if (kbd_data.key_evt_cnt >= 6) {
+			k_sem_give(&sem_kscan);
 		}
 	}
 }
-static uint32_t multikey_map;
-void make_keyplan(void)
-{
-	uint32_t map;
-	uint8_t i;
 
-	for (map = 0, i = 0; i < 8; i++) {
-		map <<= 4;
-		map |= (multikey_map * i + multikey_map + i) % MAX_MATRIX_KEY_COLS;
-		;
-		multikey_map += map;
-	}
-	LOG_INF("map:%08x", map);
-	Cmd[2] = 0x00 | (map & 0xF);
-	map >>= 4;
-	Cmd[3] = 0x10 | (map & 0xF);
-	map >>= 4;
-	Cmd[4] = 0x20 | (map & 0xF);
-	map >>= 4;
-	Cmd[5] = 0x30 | (map & 0xF);
-	map >>= 4;
-	Cmd[6] = 0x40 | (map & 0xF);
-	map >>= 4;
-	Cmd[7] = 0x50 | (map & 0xF);
-	map >>= 4;
-	Cmd[8] = 0x60 | (map & 0xF);
-	map >>= 4;
-	Cmd[9] = 0x70 | (map & 0xF);
-	map >>= 4;
-	Cmd[1] = 8;
-}
-
-/* UTILITY */
-uint32_t atoh(uint8_t *arg)
-{
-	uint8_t i;
-	uint32_t mask;
-
-	mask = 0;
-	for (i = 0; i < 8; i++) {
-		if (arg[i] == 0) {
-			break;
-		}
-		mask <<= 4;
-		if ((arg[i] >= '0') && (arg[i] <= '9')) {
-			arg[i] = arg[i] - '0';
-		} else if ((arg[i] >= 'a') && (arg[i] <= 'f')) {
-			arg[i] = arg[i] - 'a' + 0xa;
-		} else if ((arg[i] >= 'A') && (arg[i] <= 'F')) {
-			arg[i] = arg[i] - 'A' + 0xa;
-		} else {
-			arg[i] = 0;
-		}
-		mask |= arg[i];
-	}
-	return (mask);
-}
-
-#define MAX_ARGUMNETS 3
-#define MAX_ARGU_SIZE 10
-static uint8_t arguments[MAX_ARGUMNETS][MAX_ARGU_SIZE];
-struct k_event kscan_event;
-static void kscan_validation_func(void *dummy1, void *dummy2, void *dummy3)
-{
-	uint32_t events;
-	uint8_t tmp;
-
-	k_event_init(&kscan_event);
-	if (!device_is_ready(kscan_dev)) {
-		LOG_ERR("kscan device %s not ready", kscan_dev->name);
-		return;
-	}
-
-	LOG_INF("KSCAN module hook success\n");
-	kscan_config(kscan_dev, kb_callback);
-	kscan_enable_callback(kscan_dev);
-
-	Cmd[0] = 0xFF;
-	while (true) {
-		events = k_event_wait(&kscan_event, 0xFFF, true, K_FOREVER);
-		switch (events) {
-		case 0x001: /* no argu */
-			check_resp();
-			Resp[0] = 1;
-			break;
-		case 0x002:
-			break;
-		case 0x004: /* select validation command */
-			Cmd[0] = ((uint8_t)atoi(arguments[0]));
-			Resp[0] = 1;
-			if (Cmd[0] == 0) { /* stree test one by one keys */
-				tmp = (Cmd[1] >> 4) + atoi(arguments[1]);
-				Cmd[1] = ((tmp % MAX_MATRIX_KEY_ROWS) << 4) | (Cmd[1] & 0x0F);
-				tmp = ((Cmd[1] & 0x0F) + (tmp / MAX_MATRIX_KEY_ROWS)) %
-				  MAX_MATRIX_KEY_COLS;
-				Cmd[1] = (Cmd[1] & 0xF0) | tmp;
-				LOG_INF("Stress Test Cmd[1]:%02x\n", Cmd[1]);
-			}
-			if (Cmd[0] == 1) { /* Ghost Keys validation*/
-				/* if non-zreo ghost key must happen */
-				Cmd[1] = (uint8_t)atoi(arguments[1]);
-			}
-			if (Cmd[0] == 2) { /* multi-key press */
-				/* how many keys in the Cmd plan */
-				multikey_map = atoh(arguments[1]);
-				LOG_INF("multikey_map = %08x\n", multikey_map);
-				make_keyplan();
-			}
-			break;
-		case 0x008: /* fill key press plan */
-			tmp = (uint8_t)atoi(arguments[0]);
-			Cmd[tmp] = (((uint8_t)atoi(arguments[1])) & 0x07) << 4;
-			Cmd[tmp] |= (((uint8_t)atoi(arguments[2])) & 0x0F) << 0;
-			LOG_INF("Cmd[%02x]:%02x\n", tmp, Cmd[tmp]);
-			break;
-		}
-	}
-}
 
 int main(void)
 {
 	/* Zephyr driver validation */
-	LOG_INF("Start KSCAN Validation Task\n");
-	k_thread_create(&temp_id, temp_stack, TASK_STACK_SIZE, kscan_validation_func, NULL, NULL,
-			NULL, PRIORITY, K_INHERIT_PERMS, K_FOREVER);
-	k_thread_name_set(&temp_id, "KSCAN Validation");
-	k_thread_start(&temp_id);
+	LOG_INF("Start KSCAN Validation Task");
+
+	if (!device_is_ready(kscan_dev)) {
+		LOG_ERR("kscan device %s not ready", kscan_dev->name);
+		return ENODEV;
+	}
+	LOG_INF("kscan device: %s is ready", kscan_dev->name);
+
+	kscan_config(kscan_dev, kb_callback);
+	kscan_enable_callback(kscan_dev);
+
 	return 0;
 }
 
-static int kscan_command(const struct shell *shell, size_t argc, char **argv)
+/**
+ * Fixed one column(KSOUT) and test each row(KSIN) key status.
+ *
+ * Example:
+ * Select KSOUT as 5.
+ * KBIN:0 KBOUT:5
+ * KBIN:1 KBOUT:5
+ * KBIN:2 KBOUT:5
+ * KBIN:3 KBOUT:5
+ * KBIN:4 KBOUT:5
+ * KBIN:5 KBOUT:5
+ * KBIN:6 KBOUT:5
+ * KBIN:7 KBOUT:5
+ */
+static int kscan_scan_handler(const struct shell *shell, size_t argc, char **argv)
 {
-	int i, evt;
+	char *eptr;
+	uint8_t col_idx = 0;
+	struct key_event *p_event;
 
-	evt = 1;
-	for (evt = 1, i = 1; i < argc; i++) {
-		strcpy(arguments[i - 1], argv[i]);
-		evt <<= 1;
+	sh_ptr = shell;
+
+	/* Convert integer from string */
+	col_idx = strtoul(argv[1], &eptr, 0);
+	if (*eptr != '\0') {
+		shell_error(shell, "Invalid argument, '%s' is not an integer", argv[1]);
+		return -EINVAL;
 	}
-	k_event_post(&kscan_event, evt);
+
+	/* Check input KSOUT index correct */
+	if (col_idx > (MAX_MATRIX_KEY_COLS-1)) {
+		shell_error(shell, "Invalid KSOUT index %d(0~%d)",
+			    col_idx, MAX_MATRIX_KEY_COLS-1);
+		return -EINVAL;
+	}
+
+	reset_kbscan_data();
+	kbd_data.scan_col_idx = col_idx;
+
+
+	shell_info(shell, "Test Scan Mode, row_lim: %d, cb_cnt_lim: %d\r\n",
+		   ROW_IDX_MAX, KEY_PRESS_CB_CNT);
+
+	while (true) {
+		reset_kbscan_event();
+		set_tst_mode(KBSCAN_MD_SCAN);
+
+		/* Wait until KBSIN reach lmiit in callback */
+		k_sem_take(&sem_kscan, K_FOREVER);
+
+		/* KBSIN reach limit in callback, check all key pressed status */
+		for (int row = 0; row < MAX_MATRIX_KEY_ROWS; row++) {
+			/* Get KBSIN event result */
+			p_event = &kbd_data.event[row];
+
+			/* Each press operation include 1 pressed and 1 released callback */
+			if (p_event->cb_cnt != 0x2 ||
+			    p_event->col != col_idx ||
+			    p_event->row != row ||
+			    p_event->matrix_state[0] != true ||
+			    p_event->matrix_state[1] != false) {
+				/* Print result */
+				shell_info(shell, "Expected: row=%d, col=%d", row, col_idx);
+				shell_info(shell, "Record:   row=%d, col=%d cb_cnt=%d, sts=%d %d",
+				           p_event->row, p_event->col, p_event->cb_cnt,
+				           p_event->matrix_state[0], p_event->matrix_state[1]);
+
+				shell_error(shell, "[FAIL] Scan test");
+
+				return -ENODEV;
+			}
+		}
+
+		shell_info(shell, "[PASS] KBSOUT: %d, KBSIN 0~%d\r\n[GO]\r\n",
+			   col_idx, (MAX_MATRIX_KEY_ROWS - 1));
+
+		col_idx++;
+		kbd_data.scan_col_idx = col_idx;
+
+		if (col_idx >= MAX_MATRIX_KEY_COLS) {
+			break;
+		}
+	}
+
+	shell_info(shell, "[PASS] Scan test");
+
 	return 0;
+}
+
+/* Compare 2 key event is the same key (pressed and released) in multi key test */
+bool chk_multi_key_evt_the_same(struct key_event *p_evt1,
+				  struct key_event *p_evt2)
+{
+	if (p_evt1->col == p_evt2->col &&
+	    p_evt1->row == p_evt2->row &&
+	    p_evt1->matrix_state[0] == true &&
+	    p_evt2->matrix_state[0] == false) {
+		return true;
+	}
+
+	return false;
+}
+/**
+ * @brief Check whether ghost key is pressed
+ *
+ *  KEY pressed event sequence:  KEY_1 -> KEY_2 -> KEY_3
+ *  KEY released event sequence: KEY_4 -> KEY_5 -> KEY_6
+ *
+ *  KEY_1 (pressed) = KEY_4 (released)
+ *  KEY_3 (pressed) = KEY_5 (released)
+ *  KEY_3 (pressed) = KEY_6 (released)
+ *
+ * < Left-Up 3 Keys >
+ *    COL_0   COL_1   COL_2
+ *  +-----------------------+
+ *  | KEY_1 | KEY_3 |       | ROW_0
+ *  |       |       |       |
+ *  +-------+-------+-------+
+ *  | KEY_2 | Ghost |       | ROW_1
+ *  |       |  Key  |       |
+ *  +-------+-------+-------+
+ *  |       |       |       | ROW_2
+ *  |       |       |       |
+ *  +-------+-------+-------+
+ *
+ * < Right-Bottom 3 Keys >
+ *    COL_0   COL_1   COL_2
+ *  +-----------------------+
+ *  |       |       |       | ROW_0
+ *  |       |       |       |
+ *  +-------+-------+-------+
+ *  |       | Ghost | KEY_2 | ROW_1
+ *  |       |  Key  |       |
+ *  +-------+-------+-------+
+ *  |       | KEY_1 | KEY_3 | ROW_2
+ *  |       |       |       |
+ *  +-------+-------+-------+
+ *
+ */
+
+static int kscan_ghost_handler(const struct shell *shell, size_t argc, char **argv)
+{
+	char *eptr;
+	struct key_event *p_evt[6];
+
+	/* 0: Left-up 3 key.
+	   1: Right-bottom 3 key.
+	   2: 4-key pressed
+	 */
+	uint8_t mode = 0;
+
+	sh_ptr = shell;
+
+	/* Convert integer from string */
+	mode = strtoul(argv[1], &eptr, 0);
+	if (*eptr != '\0') {
+		shell_error(shell, "Invalid argument, '%s' is not an integer", argv[1]);
+		return -EINVAL;
+	}
+
+	if (mode >= GHOST_MD_MAX) {
+		shell_info(shell, "ghost mode not support: %d", mode);
+		return -EINVAL;
+	}
+
+	set_tst_mode(KBSCAN_MD_GHOST);
+	reset_kbscan_data();
+
+	/* Wait until 3 key pressed operation finish */
+	k_sem_take(&sem_kscan, K_FOREVER);
+
+	/* Reserve more time for ghost key callback if it is triggered */
+	k_sleep(K_MSEC(300));
+
+	/* 3 key pressed operation = 6 callback events */
+	/* Ghost key operation 7th and 8th callback should not triggered */
+	shell_info(shell, "key_evt_cnt:%d", kbd_data.key_evt_cnt);
+	if (kbd_data.key_evt_cnt == 0x0 ||
+	    kbd_data.key_evt_cnt > 6) {
+		shell_info(shell, "[FAIL] ghost key count");
+		return -EINVAL;
+	}
+
+	/* Show result */
+	for (int i = 0; i < kbd_data.key_evt_cnt; i++) {
+		p_evt[i] = &kbd_data.event[i];
+
+		shell_info(shell, "col:%d, row%d, press:%d",
+			    p_evt[i]->col, p_evt[i]->row, p_evt[i]->matrix_state[0]);
+	}
+
+	/* Check 3 key pressed/released event are the same key */
+	if (chk_multi_key_evt_the_same(p_evt[0], p_evt[3]) == true &&
+	    chk_multi_key_evt_the_same(p_evt[1], p_evt[4]) == true &&
+	    chk_multi_key_evt_the_same(p_evt[2], p_evt[5]) == true) {
+
+		/* Check left-up 3 key */
+		if (mode == GHOST_MD_LEFT_UP) {
+			/* Check key_4, key_5 the same col */
+			/* Check key_4, key_6 the same row */
+			if (p_evt[3]->col == p_evt[4]->col &&
+			    p_evt[3]->row == p_evt[5]->row) {
+				shell_info(shell, "[PASS] Ghost key left-up");
+				shell_info(shell, "[GO]");
+				return 0;
+			}
+
+		/* Check right-bottom 3 key */
+		} else if (mode == GHOST_MD_RIGHT_BUTTOM) {
+			/* Check key_5, key_6 the same col */
+			/* Check key_4, key_6 the same row */
+			if (p_evt[4]->col == p_evt[5]->col &&
+			    p_evt[3]->row == p_evt[5]->row) {
+				shell_info(shell, "[PASS] Ghost key right-bottom");
+				shell_info(shell, "[GO]");
+				return 0;
+			}
+		}
+	}
+
+	shell_info(shell, "[FAIL] Ghost key test");
+
+	return -EINVAL;
 }
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_kscan,
-	SHELL_CMD_ARG(c0, NULL, "kscan c0", kscan_command, 1, 0),
-	SHELL_CMD_ARG(c1, NULL, "kscan c1 arg0", kscan_command, 2, 0),
-	SHELL_CMD_ARG(c2, NULL, "kscan c2 arg0 arg1", kscan_command, 3, 0),
-	SHELL_CMD_ARG(c3, NULL, "kscan c3 arg0 arg1 arg2", kscan_command, 4, 0),
+	SHELL_CMD_ARG(scan, NULL, "kscan scan <col_idx>", kscan_scan_handler, 2, 0),
+	SHELL_CMD_ARG(ghost, NULL, "kscan ghost <0: left-up 3-key, 1: right-bottom 3-key",
+		      kscan_ghost_handler, 2, 0),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 );
 SHELL_CMD_REGISTER(kscan, &sub_kscan, "kscan validation commands", NULL);
