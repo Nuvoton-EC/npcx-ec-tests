@@ -203,17 +203,9 @@ static void cb_power_save(const struct device *dma_dev, void *arg,
 		LOG_INF("DMA could not proceed, an error occurred\n");
 	}
 	LOG_INF("channel : %d", channel);
-	const uint32_t dma_base = get_dev_base(dma_dev);
-	passFlag = 0;
+	struct dma_reg *const inst = HAL_INSTANCE(dma_dev, channel);
 
-	passFlag |= 1;
-	for (uint32_t i = 0; i < MOVE_SIZE; i++) {
-		if (GDMAMemPool2[i] != 0xa5) {
-			passFlag = 0;
-			break;
-		}
-	}
-	passFlag |= (GET_BIT(DMA_CTL(dma_base, channel), NPCX_DMACTL_TC) == 0) << 1;
+	passFlag |= (GET_BIT(inst->CONTROL, NPCX_DMACTL_TC) == 0) << 1;
 	if (passFlag == 0b11) {
 		LOG_INF("[PASS][GDMA]: ch-%d Power save successful.", channel);
 	} else {
@@ -399,6 +391,15 @@ static void npcx_power_save(const struct shell *shell, size_t argc, char **argv)
 	DMA_SRCB(dma_base, ch) = 0x9ABCDEF0;
 	if (DMA_SRCB(dma_base, ch) != 0x9ABCDEF0) {
 		LOG_INF("[FAIL][GDMA]: ch-%d write src address failed.", ch);
+	}
+	passFlag = 0;
+
+	passFlag |= 1;
+	for (uint32_t i = 0; i < MOVE_SIZE; i++) {
+		if (GDMAMemPool2[i] != 0xa5) {
+			passFlag = 0;
+			break;
+		}
 	}
 	dma_set_power_save(dev, ch, DISABLE);
 }
@@ -674,7 +675,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
 	#endif
 	SHELL_CMD_ARG(ram, NULL, "dma ram <0/1> <1B/1W/1DW/Burst>",
 		dam_ram_to_ram, 3, 0),
-	SHELL_CMD_ARG(flash, NULL, "dma flash <int/ext flash> <GDMAMemPool/code ram>"
+	SHELL_CMD_ARG(flash, NULL, "dma flash <int/ext/bkp flash> <GDMAMemPool/code ram>"
 		"<1B/1W/1DW/Burst>", dam_flash_to_ram, 4, 0),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 );
