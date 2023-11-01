@@ -11,7 +11,7 @@
 
 	aliases {
 		/* For samples/drivers/spi_flash */
-		taf-flash = &shd_flash0;
+		taf-flash = &shd_flash1;
 	};
 };
 
@@ -27,28 +27,29 @@
 		max-timeout = <86784>;
 		reg = <0>;
 
-		status = "okay";
+		status = "disabled";
 
 		/* Config for npcx4 SVB board - CS0 */
-		/* qspi-flags = <NPCX_QSPI_SW_CS0>;
+		qspi-flags = <NPCX_QSPI_SW_CS0>;
 		mapped-addr = <0x68000000>;
 		pinctrl-0 = <&fiu_ext_io0_io1_clk_cs_gpa4_96_a2_a0
 			     &fiu_ext_quad_io2_io3_gp93_a7
 			     &ext_flash_tris_off>;
-		pinctrl-names = "default"; */
+		pinctrl-names = "default";
 
 		/* Config for npcx4 PIGGY board - CS1 */
-		qspi-flags = <(NPCX_QSPI_SW_CS0 | NPCX_QSPI_SEC_FLASH_SL)>;
+		/* qspi-flags = <(NPCX_QSPI_SW_CS0 | NPCX_QSPI_SEC_FLASH_SL)>;
 		mapped-addr = <0x6C000000>;
 		pinctrl-0 = <&fiu_ext_io0_io1_clk_cs_gpa4_96_a2_a0
 			     &fiu_ext_quad_io2_io3_gp93_a7
 			     &ext_flash_tris_off
 			     &ext_flash_cs1_sl>;
-		pinctrl-names = "default";
+		pinctrl-names = "default"; */
 
-		/* Read,Write mode */
-		read-mode  = "QUAD_IO";
-		write-mode = "QUAD_OUTPUT";
+		/* Read, write mode selection */
+		rd-mode = "NPCX_RD_MODE_FAST_QUAD";
+		dmm-cyc = <0x84>;
+		wr-mode = "QUAD_OUTPUT";
 
 		/* nand flash information */
 		page-size = <0x800>;    /* 1 page = 2048 bytes*/
@@ -65,16 +66,24 @@
 		max-timeout = <86784>;
 		reg = <0>;
 		quad-enable-requirements = "S2B1v1";
-		status = "disabled";
+		status = "okay";
+
+		/* Config for npcx4 SVB board - CS0 */
+		qspi-flags = <NPCX_QSPI_SW_CS0>;
+		mapped-addr = <0x68000000>;
+		pinctrl-0 = <&fiu_ext_io0_io1_clk_cs_gpa4_96_a2_a0
+			     &fiu_ext_quad_io2_io3_gp93_a7
+			     &ext_flash_tris_off>;
+		pinctrl-names = "default";
 
 		/* quad spi bus configuration of nor flash device */
-		qspi-flags = <(NPCX_QSPI_SW_CS0 | NPCX_QSPI_SEC_FLASH_SL)>;
+		/* qspi-flags = <(NPCX_QSPI_SW_CS0 | NPCX_QSPI_SEC_FLASH_SL)>;
 		mapped-addr = <0x6C000000>;
 		pinctrl-0 = <&fiu_ext_io0_io1_clk_cs_gpa4_96_a2_a0
 			     &fiu_ext_quad_io2_io3_gp93_a7
 			     &ext_flash_tris_off
 			     &ext_flash_cs1_sl>;
-		pinctrl-names = "default";
+		pinctrl-names = "default"; */
 	};
 };
 
@@ -88,7 +97,7 @@
 
 		mapped-addr = <0x68000000>;
 		max-read-sz = "64B";
-		erase-sz = "SIZE_128KB";
+		erase-sz = "SIZE_4KB";
 
 		#address-cells = <1>;
 		#size-cells = <1>;
