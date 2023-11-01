@@ -32,7 +32,7 @@ enum ghost_mode {
 	GHOST_MD_LEFT_UP = 0,
 	GHOST_MD_RIGHT_BUTTOM,
 	GHOST_MD_MAX,
-} ghost_mode;
+};
 
 struct key_event {
 	/* Callback count of each key */
@@ -279,8 +279,20 @@ bool chk_multi_key_evt_the_same(struct key_event *p_evt1,
  *  |       |       |       |
  *  +-------+-------+-------+
  *
+ * < Ghost 4 Keys >
+ *    COL_0   COL_1   COL_2
+ *  +-----------------------+
+ *  |       |       |       | ROW_0
+ *  |       |       |       |
+ *  +-------+-------+-------+
+ *  |       | KEY-4 | KEY_2 | ROW_1
+ *  |       |       |       |
+ *  +-------+-------+-------+
+ *  |       | KEY_1 | KEY_3 | ROW_2
+ *  |       |       |       |
+ *  +-------+-------+-------+
+ *
  */
-
 static int kscan_ghost_handler(const struct shell *shell, size_t argc, char **argv)
 {
 	char *eptr;
@@ -306,14 +318,15 @@ static int kscan_ghost_handler(const struct shell *shell, size_t argc, char **ar
 		return -EINVAL;
 	}
 
-	set_tst_mode(KBSCAN_MD_GHOST);
+	set_tst_mode(KBSCAN_MD_GHOST); /* Enable for callback */
 	reset_kbscan_data();
 
 	/* Wait until 3 key pressed operation finish */
 	k_sem_take(&sem_kscan, K_FOREVER);
 
 	/* Reserve more time for ghost key callback if it is triggered */
-	k_sleep(K_MSEC(300));
+	k_sleep(K_MSEC(500));
+	set_tst_mode(KBSCAN_MD_NONE); /* Close callback collect */
 
 	/* 3 key pressed operation = 6 callback events */
 	/* Ghost key operation 7th and 8th callback should not triggered */
@@ -366,10 +379,48 @@ static int kscan_ghost_handler(const struct shell *shell, size_t argc, char **ar
 	return -EINVAL;
 }
 
+static int kscan_ghost_4key_handler(const struct shell *shell, size_t argc, char **argv)
+{
+	char *eptr;
+	uint8_t mode; /* 0: reset data, 1: check result*/
+
+
+	sh_ptr = shell;
+
+	/* Convert integer from string */
+	mode = strtoul(argv[1], &eptr, 0);
+	if (*eptr != '\0') {
+		shell_error(shell, "Invalid argument, '%s' is not an integer", argv[1]);
+		return -EINVAL;
+	}
+
+
+	if (mode == 0x0) {
+		/* Set mode and reset data*/
+		set_tst_mode(KBSCAN_MD_GHOST);
+		reset_kbscan_data();
+		shell_info(shell, "Reset data done, please press 4-key.");
+	} else {
+		/* Verify driver block ghost key*/
+		shell_info(shell, "key_evt_cnt:%d", kbd_data.key_evt_cnt);
+
+		/* The driver will block ghost key, check no callback occurred. */
+		if (kbd_data.key_evt_cnt == 0x0) {
+			shell_info(shell, "[PASS] ghost 4-key test");
+		} else {
+			shell_info(shell, "[FAIL] ghost 4-key test");
+		}
+	}
+
+	return 0;
+}
+
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_kscan,
 	SHELL_CMD_ARG(scan, NULL, "kscan scan <col_idx>", kscan_scan_handler, 2, 0),
-	SHELL_CMD_ARG(ghost, NULL, "kscan ghost <0: left-up 3-key, 1: right-bottom 3-key",
+	SHELL_CMD_ARG(ghost_3key, NULL, "kscan ghost <0: left-up 3-key, 1: right-bottom 3-key",
 		      kscan_ghost_handler, 2, 0),
+	SHELL_CMD_ARG(ghost_4key, NULL, "kscan ghost 4key <0: init, 1: check result>",
+		      kscan_ghost_4key_handler, 2, 0),
 	SHELL_SUBCMD_SET_END /* Array terminated. */
 );
 SHELL_CMD_REGISTER(kscan, &sub_kscan, "kscan validation commands", NULL);
