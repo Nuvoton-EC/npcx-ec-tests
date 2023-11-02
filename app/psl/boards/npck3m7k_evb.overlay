@@ -1,0 +1,16 @@
+/*
+ * Copyright (c) 2023 Nuvoton Technology Corporation.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+
+/* Power domain device controlled by PSL */
+&power_ctrl_psl {
+	status = "okay";
+	psl-driven-type = "fw-ctrl-driven";
+	enable-gpios = <&gpiostb1 7 0>;
+	pinctrl-names = "default", "hibernate";
+	pinctrl-0 = <&psl_in0_gpstb11 &psl_in1_gpstb12 &psl_in2_gpstb13 &psl_in3_gpstb14 &psl_in4_gpstb15 &psl_in5_gpstb16> ;
+	pinctrl-1 = <&psl_out_fw_high &psl_out_fw_ctl_en &psl_out_fw_low> ;
+};

@@ -19,14 +19,21 @@ LOG_MODULE_REGISTER(main);
 #define MAX_ARGUMNETS	3
 #define MAX_ARGU_SIZE	10
 
+
+
+
+/* Soc specific system local functions */
+#define PSL_OUT_GPIO_DRIVEN	0
+#define PSL_OUT_FW_CTRL_DRIVEN	1
+#define PINCTRL_STATE_HIBERNATE 1
+
+#define PSL_NODE DT_INST(0, nuvoton_npcx_power_psl)
+PINCTRL_DT_DEFINE(PSL_NODE);
+
 static struct k_thread temp_id;
 K_THREAD_STACK_DEFINE(temp_stack, TASK_STACK_SIZE);
 static uint8_t arguments[MAX_ARGUMNETS][MAX_ARGU_SIZE];
 struct k_event psl_event;
-
-
-#define PSL_NODE DT_INST(0, nuvoton_npcx_power_psl)
-PINCTRL_DT_DEFINE(PSL_NODE);
 
 static int cros_system_npcx_configure_psl_in(void)
 {
@@ -37,9 +44,18 @@ static int cros_system_npcx_configure_psl_in(void)
 
 static void cros_system_npcx_psl_out_inactive(void)
 {
+#if (DT_ENUM_IDX(PSL_NODE, psl_driven_type) == PSL_OUT_GPIO_DRIVEN)
 	struct gpio_dt_spec enable = GPIO_DT_SPEC_GET(PSL_NODE, enable_gpios);
 
 	gpio_pin_set_dt(&enable, 1);
+#elif (DT_ENUM_IDX(PSL_NODE, psl_driven_type) == PSL_OUT_FW_CTRL_DRIVEN)
+
+	LOG_INF("PINCTRL_STATE_HIBERNATE\n");
+	const struct pinctrl_dev_config *pcfg =
+		PINCTRL_DT_DEV_CONFIG_GET(PSL_NODE);
+
+	pinctrl_apply_state(pcfg, PINCTRL_STATE_HIBERNATE);
+#endif
 }
 
 static void npcx_psl_init(void)
