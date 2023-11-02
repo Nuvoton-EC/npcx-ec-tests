@@ -28,7 +28,7 @@
 		status = "okay";
 
 		/* Config for npcx4 SVB board - CS0 */
-		qspi-flags = <NPCX_QSPI_SW_CS0>;
+		qspi-flags = <(NPCX_QSPI_SW_CS0 | NPCX_QSPI_FIU_DRV1)>;
 		mapped-addr = <0x68000000>;
 		pinctrl-0 = <&fiu_ext_io0_io1_clk_cs_gpa4_96_a2_a0
 			     &fiu_ext_quad_io2_io3_gp93_a7
@@ -36,7 +36,8 @@
 		pinctrl-names = "default";
 
 		/* Config for npcx4 PIGGY board - CS1 */
-		/* qspi-flags = <(NPCX_QSPI_SW_CS0 | NPCX_QSPI_SEC_FLASH_SL)>;
+		/* qspi-flags = <(NPCX_QSPI_SW_CS0 | NPCX_QSPI_SEC_FLASH_SL |
+		                  NPCX_QSPI_FIU_DRV1)>;
 		mapped-addr = <0x6C000000>;
 		pinctrl-0 = <&fiu_ext_io0_io1_clk_cs_gpa4_96_a2_a0
 			     &fiu_ext_quad_io2_io3_gp93_a7
