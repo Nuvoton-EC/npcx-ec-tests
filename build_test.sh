@@ -17,14 +17,19 @@ echo -e "Usage : simply choose the board and app\n"
 
 # Display the available board options
 echo "Choose board:"
+echo "0. choice zephyr repo branch name and board name:"
 echo "1. x4 "
 echo "2. x9 "
 echo "3. k3 "
 
-read -p "Enter your choice (1/2/3): " board_choice
+read -p "Enter your choice (0/1/2/3): " board_choice
 
 # Validate the user's board choice
 case $board_choice in
+	0)
+	read -p "Enter zephyr branch name: " branch_name
+	read -p "Enter npcx_tests board : " selected_board
+	;;
     1)
     selected_board="npcx4m8f_evb"
     branch_name="main"
@@ -35,7 +40,7 @@ case $board_choice in
     ;;
     3)
     selected_board="npck3m7k_evb"
-    branch_name="npcx_k3_0920"
+    branch_name="npcx_k3_1025"
     ;;
     *)
         echo "Invalid choice! Please select a valid option."
@@ -57,8 +62,7 @@ git pull
 
 #remote update npcx_tesst
 cd ~/zephyrproject/npcx_tests/
-git remote update
-git rebase
+git pull
 
 # Function to check if the app folder exists
 check_app_exists() {
