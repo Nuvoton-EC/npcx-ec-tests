@@ -50,7 +50,7 @@ npck3m7k_evb:
   extends: .test_template
   parallel:
       matrix:
-        - BRANCH_NAME: "npcx_k3_0920"
+        - BRANCH_NAME: "npcx_k3_1025"
           BOARD_NAME: "npck3m7k_evb"
           MODULE_NAME: ["adc", "adc_cmp", "bbram", "dma","espi", "espisaf", "gpio", "gpio_all_io_test", "kscan", "miwu_auto_test", "nand_flash","nor_flash", "peci", "ps2","pwm", "sha", "smbm","smbm_tmp100", "smbs", "tach"]
   only:
