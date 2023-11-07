@@ -3,8 +3,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-	&bbram {
-		status = "okay";
-		reg = <0x400af000 0x100
-			   0x400af100 0x1>;
-	};
+&bbram {
+	status = "okay";
+	reg = <0x400af000 0x100
+		0x400af100 0x1>;
+};
