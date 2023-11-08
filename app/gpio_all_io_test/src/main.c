@@ -680,6 +680,7 @@ int main(void)
 	struct glue_reg *inst_glue = (struct glue_reg *)(NPCX_GLUE_REG_ADDR);
 	inst_glue->EPURST_CTL &= ~BIT(NPCX_EPURST_CTL_EPUR2_EN);
 	*(volatile uint8_t*)(0x400C3011) = 0x00;
+	*(volatile uint8_t*)(0x400C301F) = 0x00;
 #elif defined(CONFIG_SOC_SERIES_NPCX4)/*ToDo pinctl*/
 	/*Select VHIF 3.3V*/
 	/*Register addr: 400c3000, bit set 0xD4*/
