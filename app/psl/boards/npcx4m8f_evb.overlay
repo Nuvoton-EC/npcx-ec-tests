@@ -11,9 +11,13 @@
 };
 
 /* Power domain device controlled by PSL */
-&power_ctrl_psl {
-	status = "okay";
-	enable-gpios = <&gpio8 5 0>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&psl_in1_gpd2 &psl_in2_gp00 &psl_in3_gp01 &psl_in4_gp02>;
+/ {
+	psl_ctrl {
+		compatible = "npcx-hibernate-psl";
+		psl-driven-type = "gpio-driven";
+		status = "okay";
+		enable-gpios = <&gpio8 5 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&psl_in1_gpd2 &psl_in2_gp00 &psl_in3_gp01 &psl_in4_gp02>;
+	};
 };

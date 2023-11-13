@@ -20,14 +20,12 @@ LOG_MODULE_REGISTER(main);
 #define MAX_ARGU_SIZE	10
 
 
-
-
 /* Soc specific system local functions */
 #define PSL_OUT_GPIO_DRIVEN	0
 #define PSL_OUT_FW_CTRL_DRIVEN	1
 #define PINCTRL_STATE_HIBERNATE 1
 
-#define PSL_NODE DT_INST(0, nuvoton_npcx_power_psl)
+#define PSL_NODE DT_INST(0, npcx_hibernate_psl)
 PINCTRL_DT_DEFINE(PSL_NODE);
 
 static struct k_thread temp_id;
