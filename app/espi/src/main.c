@@ -16,24 +16,37 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(main);
 
-#define ESPI_FREQ_20MHZ       20u
-#define ESPI_FREQ_25MHZ       25u
-#define ESPI_FREQ_33MHZ       33u
-#define ESPI_FREQ_50MHZ       50u
-#define ESPI_FREQ_66MHZ       66u
+#define ESPI_FREQ_20MHZ             20u
+#define ESPI_FREQ_25MHZ             25u
+#define ESPI_FREQ_33MHZ             33u
+#define ESPI_FREQ_50MHZ             50u
+#define ESPI_FREQ_66MHZ             66u
 
-#define TASK_STACK_SIZE         1024
-#define PRIORITY                7
+#define TASK_STACK_SIZE             1024
+#define PRIORITY                    7
 static struct k_thread temp_id;
 K_THREAD_STACK_DEFINE(temp_stack, TASK_STACK_SIZE);
 
-
-#define MAX_ARGUMNETS 3
-#define MAX_ARGU_SIZE 10
+#define MAX_ARGUMNETS               3
+#define MAX_ARGU_SIZE               10
+#define MAX_TEST_BUF_SIZE           1024u
+#define MAX_FLASH_REQUEST           64u
+#define MAX_FLASH_WRITE_REQUEST     64u
+#define MAX_FLASH_ERASE_BLOCK       64u
 static uint8_t arguments[MAX_ARGUMNETS][MAX_ARGU_SIZE];
+static uint8_t flash_write_buf[MAX_TEST_BUF_SIZE];
+static uint8_t flash_read_buf[MAX_TEST_BUF_SIZE];
 static const struct device *const espi_dev = DEVICE_DT_GET(DT_NODELABEL(espi0));
 struct k_event espi_event;
 
+enum maf_erase_size {
+	MAF_ERASE_4K = 1,
+	MAF_ERASE_64K = 2,
+	MAF_ERASE_128K = 4,
+	MAF_ERASE_256K = 5,
+};
+
+const struct shell *sh_ptr;
 static int p80_sum;
 void espi_init(void);
 void espi_set_cfg(char *channel, char *speed, char *iomode);
@@ -42,6 +55,10 @@ void espi_oob_txrx(uint8_t txrx);
 void espi_check_channel_ready(void);
 void espi_send_vw(char vw, char lv);
 void espi_hcmd(uint32_t offs);
+int espi_maf_read(uint32_t start_addr);
+int espi_maf_write(uint32_t start_addr);
+int espi_maf_erase(uint32_t start_addr);
+
 static void espi_validation_func(void *dummy1, void *dummy2, void *dummy3)
 {
 	uint32_t  events;
@@ -103,6 +120,18 @@ static void espi_validation_func(void *dummy1, void *dummy2, void *dummy3)
 				data = atoi(arguments[1]);
 				espi_hcmd(data);
 			}
+			if (!strcmp("fread", arguments[0])) {
+				data = atoi(arguments[1]);
+				espi_maf_read(data);
+			}
+			if (!strcmp("fwrite", arguments[0])) {
+				data = atoi(arguments[1]);
+				espi_maf_write(data);
+			}
+			if (!strcmp("ferase", arguments[0])) {
+				data = atoi(arguments[1]);
+				espi_maf_erase(data);
+			}
 			break;
 		case 0x008: /* fill key press plan */
 			espi_set_cfg(arguments[0], arguments[1], arguments[2]);
@@ -124,6 +153,7 @@ static int espi_command(const struct shell *shell, size_t argc, char **argv)
 {
 	int i, evt;
 
+	sh_ptr = shell;
 	evt = 1;
 	for (evt = 1, i = 1; i < argc; i++) {
 		strcpy(arguments[i-1], argv[i]);
@@ -348,7 +378,7 @@ void espi_init(void)
 	espi_add_callback(espi_dev, &p80_cb);
 	espi_add_callback(espi_dev, &oob_cb);
 	LOG_INF("initial complete");
-	int rv = rv = espi_write_lpc_request(espi_dev, ECUSTOM_HOST_SUBS_INTERRUPT_EN, &enable);
+	espi_write_lpc_request(espi_dev, ECUSTOM_HOST_SUBS_INTERRUPT_EN, &enable);
 }
 
 void espi_oob_txrx(uint8_t txrx)
@@ -438,4 +468,123 @@ void espi_hcmd(uint32_t offs)
 	ptr2[offs] = ((i & 0xFF000000) >> 24)|((i & 0x00FF0000) >> 8)|
 					((i & 0x0000FF00) << 8)|((i & 0x000000FF) << 24);
 	ptr1[offs] = ~ptr1[offs];
+}
+
+int read_test_block(uint8_t *buf, uint32_t start_flash_adr, uint16_t len)
+{
+	int ret = 0;
+	struct espi_flash_packet pckt;
+
+	pckt.buf = buf;
+	pckt.flash_addr = start_flash_adr;
+	pckt.len = len;
+
+	ret = espi_read_flash(espi_dev, &pckt);
+	if (ret) {
+		LOG_ERR("espi_read_flash failed: %d", ret);
+		return ret;
+	}
+
+	LOG_INF("read flash transactions (total=%d Bytes) completed", len);
+	LOG_INF("[PASS]");
+	return 0;
+}
+
+int write_test_block(uint8_t *buf, uint32_t start_flash_adr, uint16_t len)
+{
+	int ret = 0;
+	struct espi_flash_packet pckt;
+
+	/* Split operation in multiple MAX_FLASH_REQ transactions */
+	pckt.buf = buf;
+	pckt.flash_addr = start_flash_adr;
+	pckt.len = len;
+
+	ret = espi_write_flash(espi_dev, &pckt);
+	if (ret) {
+		LOG_ERR("espi_write_flash failed: %d", ret);
+		return ret;
+	}
+
+	LOG_INF("write flash transactions (total=%d Bytes) completed", len);
+	LOG_INF("[PASS]");
+	return 0;
+}
+
+int erase_test_block(uint32_t start_flash_adr, uint16_t block_len)
+{
+	uint32_t flash_addr = start_flash_adr;
+	uint16_t transactions = block_len/MAX_FLASH_ERASE_BLOCK;
+	struct espi_flash_packet pckt;
+	uint8_t i = 0;
+	int ret = 0;
+
+	/* Split operation in multiple MAX_FLASH_ERASE_BLOCK transactions */
+	for (i = 0; i < transactions; i++) {
+		pckt.flash_addr = flash_addr;
+		pckt.len = MAF_ERASE_64K;
+
+		ret = espi_flash_erase(espi_dev, &pckt);
+		if (ret) {
+			LOG_ERR("espi_erase_flash failed: %d", ret);
+			return ret;
+		}
+
+		flash_addr += MAX_FLASH_ERASE_BLOCK;
+	}
+
+	LOG_INF("%d erase flash transactions completed", transactions);
+	LOG_INF("[PASS]");
+	return 0;
+}
+
+
+int espi_maf_read(uint32_t start_addr)
+{
+	uint16_t test_len = 0xA;
+	int ret, ind;
+
+	ret = read_test_block(flash_read_buf, start_addr, test_len);
+	if (ret) {
+		LOG_ERR("Failed to read from eSPI MAF");
+		return ret;
+	}
+
+	shell_info(sh_ptr, "DATA: ");
+	for (ind = 0; ind < test_len; ind++) {
+		shell_info(sh_ptr, "%x", flash_read_buf[ind]);
+	}
+
+	return 0;
+}
+
+int espi_maf_write(uint32_t start_addr)
+{
+	uint16_t test_len = 0xA;
+	int ret, ind;
+
+	for (ind = 0; ind < test_len; ind++) {
+		flash_write_buf[ind] = ind;
+	}
+
+	ret = write_test_block(flash_write_buf, start_addr, test_len);
+	if (ret) {
+		LOG_ERR("Failed to write to eSPI MAF");
+		return ret;
+	}
+
+	return 0;
+}
+
+int espi_maf_erase(uint32_t start_addr)
+{
+	int ret;
+
+	ret = erase_test_block(start_addr, sizeof(flash_write_buf));
+	if (ret) {
+		LOG_ERR("Failed to erase to eSPI MAF");
+		return ret;
+	}
+
+	return 0;
 }
