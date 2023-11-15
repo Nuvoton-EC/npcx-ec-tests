@@ -81,25 +81,51 @@ static void espi_validation_func(void *dummy1, void *dummy2, void *dummy3)
 				espi_oob_txrx(0);
 			if (!strcmp("oob_tx", arguments[0]))
 				espi_oob_txrx(1);
+			if (!strcmp("dis_kbc_irq", arguments[0])) {
+				if (espi_write_lpc_request(espi_dev, E8042_PAUSE_IRQ, 0x0) == 0)
+					LOG_INF("KBC IRQ disable pass");
+			}
+			if (!strcmp("ena_kbc_irq", arguments[0])) {
+				if (espi_write_lpc_request(espi_dev, E8042_RESUME_IRQ, 0x0) == 0)
+					LOG_INF("KBC IRQ enable pass");
+			}
 			break;
 		case 0x004: /* select validation command */
-			if (!strcmp("kbw", arguments[0])) {
+			if (!strcmp("sendvw0", arguments[0])) {
+				data = atoi(arguments[1]);
+				espi_send_vw(data, 0);
+			}
+			if (!strcmp("set_st", arguments[0])) {
+				data = atoi(arguments[1]);
+				if (espi_write_lpc_request(espi_dev, E8042_SET_FLAG, &data) == 0)
+					LOG_INF("Set KBC FLAG pass");
+			}
+			if (!strcmp("clr_st", arguments[0])) {
+				data = atoi(arguments[1]);
+				if (espi_write_lpc_request(espi_dev, E8042_CLEAR_FLAG, &data) == 0)
+					LOG_INF("Clear KBC FLAG pass");
+			}
+			if (!strcmp("kbw", arguments[0])) { /* keyboard */
 				data = atoi(arguments[1]);
 				if (espi_write_lpc_request(espi_dev, E8042_WRITE_KB_CHAR, &data)
 						== 0)
-					LOG_INF("Write pass");
+					LOG_INF("Write keyboard pass");
 			}
-			if (!strcmp("msw", arguments[0])) {
+			if (!strcmp("msw", arguments[0])) { /* mouse */
 				data = atoi(arguments[1]);
 				if (espi_write_lpc_request(espi_dev, E8042_WRITE_MB_CHAR, &data)
 						== 0)
-					LOG_INF("Write pass");
+					LOG_INF("Write mouse pass");
 			}
 			if (!strcmp("acpi", arguments[0])) {
 				data = atoi(arguments[1]);
-				if (espi_write_lpc_request(espi_dev, EACPI_WRITE_CHAR, &data)
-						== 0)
-					LOG_INF("Write pass");
+				if (espi_write_lpc_request(espi_dev, EACPI_WRITE_CHAR, &data) == 0)
+					LOG_INF("Write ACPI pass");
+			}
+			if (!strcmp("acpi_sts", arguments[0])) {
+				data = atoi(arguments[1]);
+				if (espi_write_lpc_request(espi_dev, EACPI_WRITE_STS, &data) == 0)
+					LOG_INF("Write ACPI STS pass");
 			}
 			if (!strcmp("p80_check", arguments[0])) {
 				data = atoi(arguments[1]);
@@ -119,6 +145,12 @@ static void espi_validation_func(void *dummy1, void *dummy2, void *dummy3)
 			if (!strcmp("shm", arguments[0])) {
 				data = atoi(arguments[1]);
 				espi_hcmd(data);
+			}
+			if (!strcmp("hcmd", arguments[0])) {
+				data = atoi(arguments[1]);
+				if (espi_write_lpc_request(espi_dev, ECUSTOM_HOST_CMD_SEND_RESULT,
+							   &data) == 0)
+					LOG_INF("Write hcmd pass");
 			}
 			if (!strcmp("fread", arguments[0])) {
 				data = atoi(arguments[1]);
