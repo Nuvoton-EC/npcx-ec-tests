@@ -95,7 +95,7 @@ static const struct espi_saf_pr flash_protect_regions[2] = {
 static struct espi_saf_cfg taf_cfg_flash = {
 	.nflash_devices = 1U,
 	.hwcfg = {
-		.mode = ESPI_TAF_AUTO_MODE,
+		.mode = NPCX_TAF_AUTO_MODE,
 	},
 };
 
@@ -228,8 +228,8 @@ bool nand_invalid_check(uint32_t addr, uint32_t len)
 
 	if (bb_cnt > 0 && bb_cnt < 20) {
 		for (cnt = 0; cnt < bb_cnt; cnt++) {
-			bk_start = _128KB_ * lut_table.bbt_list[cnt];
-			bk_end = bk_start + _128KB_ - 1;
+			bk_start = KB(128) * lut_table.bbt_list[cnt];
+			bk_end = bk_start + KB(128) - 1;
 			if (bk_start <= ed_addr && st_addr <= bk_end)
 				return true;
 		}
@@ -299,12 +299,12 @@ int taf_npcx_flash_erase(const struct device *dev, struct taf_handle_data *info)
 	struct espi_taf_npcx_pckt taf_data;
 	struct espi_saf_packet pckt_taf;
 	uint32_t len;
-	int erase_blk[4] = {_4KB_, _32KB_, _64KB_, _128KB_};
+	int erase_blk[4] = {KB(4), KB(32), KB(64), KB(128)};
 
 	len = erase_blk[info->length];
 
 #if defined(CONFIG_FLASH_NPCX_FIU_NAND_INIT)
-	if (len != _128KB_) {
+	if (len != KB(128)) {
 		LOG_ERR("Erase size not meet 128KB alignment");
 		return -EINVAL;
 	}
@@ -550,13 +550,13 @@ void flash_handler(struct k_work *item)
 	int ret = 0;
 
 	switch (info->taf_type & 0x0F) {
-	case ESPI_FLASH_TAF_REQ_READ:
+	case NPCX_ESPI_TAF_REQ_READ:
 		ret = taf_npcx_flash_read(taf_dev, &taf_data);
 		break;
-	case ESPI_FLASH_TAF_REQ_ERASE:
+	case NPCX_ESPI_TAF_REQ_ERASE:
 		ret = taf_npcx_flash_erase(taf_dev, &taf_data);
 		break;
-	case ESPI_FLASH_TAF_REQ_WRITE:
+	case NPCX_ESPI_TAF_REQ_WRITE:
 		ret = taf_npcx_flash_write(taf_dev, &taf_data);
 		break;
 	}
@@ -590,7 +590,7 @@ static int flash_erase_cmd(const struct shell *shell, size_t argc, char **argv)
 		return -EINVAL;
 	}
 
-	ret = flash_erase(spi_dev, addr, _128KB_);
+	ret = flash_erase(spi_dev, addr, KB(128));
 	if (ret != 0) {
 		LOG_ERR("flash erase failed: %d", ret);
 		return -ENODEV;
