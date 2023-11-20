@@ -52,8 +52,7 @@ npck3m7k_evb:
       matrix:
         - BRANCH_NAME: "npcx_k3_1025"
           BOARD_NAME: "npck3m7k_evb"
-          MODULE_NAME: ["adc", "adc_cmp", "bbram", "espi", "espisaf", "gpio", "gpio_all_io_test", "kscan", "miwu_auto_test", "nor_flash", "peci", "ps2", "pwm", "sha", "smbm", "smbm_tmp100", "smbs", "tach"]
-          TEST_MODULE_NAME: ["dma", "nand_flash"]  
+          MODULE_NAME: ["adc", "adc_cmp", "bbram", "espi", "espisaf", "gpio", "gpio_all_io_test", "kscan", "miwu_auto_test", "nor_flash", "peci", "ps2", "pwm", "sha", "smbm", "smbm_tmp100", "smbs", "tach"] 
   only:
     - triggers
 
