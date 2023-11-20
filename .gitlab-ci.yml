@@ -2,7 +2,7 @@ stages:
   - build
   - test
 
-build:
+checkpatch-job:
   stage: build
   image: $DOCKER_IMAGE
   services:
@@ -13,7 +13,7 @@ build:
     DOCKER_DRIVER: overlay2
     DOCKER_TLS_CERTDIR: ''
   script:
-    - echo "Welcome, $GITLAB_USER_LOGIN!" 
+    - echo "Welcome, $GITLAB_USER_LOGIN!"
     - set -e exec
     - exec git diff $CI_COMMIT_BEFORE_SHA $CI_COMMIT_SHA | ~/zephyrproject/zephyr/scripts/checkpatch.pl -q
   tags:
@@ -23,7 +23,7 @@ build:
       - .gitlab-ci.yml
       - "*.sh"
 
-.test_template:
+.build-all-job:
   stage: test
   image: $DOCKER_IMAGE
   script:
@@ -41,18 +41,22 @@ build:
   tags:
     - docker
   artifacts:
-    when: always 
+    when: always
     paths:
      - $CI_PROJECT_DIR/
     expire_in: 1 week
-      
-npck3m7k_evb:
-  extends: .test_template
+
+build-k3-x9-job:
+  extends: .build-all-job
   parallel:
       matrix:
         - BRANCH_NAME: "npcx_k3_1025"
           BOARD_NAME: "npck3m7k_evb"
-          MODULE_NAME: ["adc", "adc_cmp", "bbram", "espi", "espisaf", "gpio", "gpio_all_io_test", "kscan", "miwu_auto_test", "nor_flash", "peci", "ps2", "pwm", "sha", "smbm", "smbm_tmp100", "smbs", "tach"] 
+          MODULE_NAME: ["adc", "adc_cmp", "bbram", "espi", "espisaf", "gpio", "gpio_all_io_test", "kscan", "miwu_auto_test", "nor_flash", "peci", "ps2", "pwm", "sha", "smbm", "smbm_tmp100", "smbs", "tach"]
+        - BRANCH_NAME: "main"
+          BOARD_NAME: "npcx9m6f_evb"
+          MODULE_NAME: ["adc", "adc_cmp", "bbram", "espi", "espisaf", "gpio", "gpio_all_io_test", "kscan", "miwu_auto_test", "nor_flash", "peci", "ps2", "pwm", "sha", "smbm", "smbm_tmp100", "smbs", "tach"]
   only:
-    - triggers
-
+    refs:
+      - master
+      - triggers
