@@ -20,9 +20,6 @@
 };
 
 &espi0 {
-	rx-plsize = <64>;
-	tx-plsize = <64>;
-
 	espi_taf: espitaf@4000a000 {
 		compatible = "nuvoton,npcx-espi-taf";
 		reg = <0x4000a000 0x2000>;
