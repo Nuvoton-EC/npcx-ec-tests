@@ -64,6 +64,9 @@ git pull
 cd ~/zephyrproject/npcx_tests/
 git pull
 
+#Activate the virtual environment:
+source ~/zephyrproject/.venv/bin/activate
+
 # Function to check if the app folder exists
 check_app_exists() {
     if [ ! -d "app/$1" ]; then
@@ -72,27 +75,30 @@ check_app_exists() {
     fi
 }
 
+check_overlay_file() {
+    if [ -f "app/$1/boards/$selected_board.overlay" ]; then
+        export BOARD=$selected_board
+        west build -p always app/$1/ >> "$log_file" 2>&1
+        if [ $? -eq 0 ]; then
+            echo -e "app name: $1, Build Pass"
+        else
+            echo -e "app name: $1, Build Failed"
+        fi
+    else
+        echo "Skipping build for app '$1' as overlay file '$selected_board.overlay' does not exist."
+    fi
+}
+
 if [ "$app_choice" = "all" ]; then
     for driver in "${verify_driver[@]}"; do
         check_app_exists "$driver"
-        export BOARD=$selected_board
-        west build -p always app/$driver/ >> "$log_file" 2>&1
-        if [ $? -eq 0 ]; then
-            echo -e "app name: $driver, Build Pass"
-        else
-            echo -e "app name: $driver, Build Failed"
-        fi
+		check_overlay_file "$driver"
     done
 else
     check_app_exists "$app_choice"
-    export BOARD=$selected_board
-    west build -p always app/$app_choice/ >> "$log_file" 2>&1
-    if [ $? -eq 0 ]; then
-        echo -e "Build Pass"
-    else
-        echo -e "Build Failed"
-    fi
+    check_overlay_file "$app_choice"
 fi
+
 
 #delete build log
 rm -rf $log_file
