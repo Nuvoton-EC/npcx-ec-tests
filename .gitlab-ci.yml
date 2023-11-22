@@ -38,6 +38,7 @@ checkpatch-job:
     - cd ~/zephyrproject/npcx_tests
     - chmod a+x ./check_overlay.sh
     - ./check_overlay.sh $BOARD_NAME $MODULE_NAME
+    - rm -rf ~/zephyrproject/npcx_tests
   tags:
     - docker
   artifacts:
