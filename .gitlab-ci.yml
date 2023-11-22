@@ -35,9 +35,9 @@ checkpatch-job:
     - git clone $NPCX_TEST_REPO_URL
     - cd ~/zephyrproject
     - west update
-    - cd ~/zephyrproject/npcx_tests/app/$MODULE_NAME/
-    - west build -p always -b $BOARD_NAME > $CI_PROJECT_DIR/build.log 2>&1
-    - mv ~/zephyrproject/npcx_tests/app/$MODULE_NAME/build/zephyr/zephyr.npcx.bin $CI_PROJECT_DIR
+    - cd ~/zephyrproject/npcx_tests
+    - chmod a+x ./check_overlay.sh
+    - ./check_overlay.sh $BOARD_NAME $MODULE_NAME
   tags:
     - docker
   artifacts:
@@ -46,13 +46,21 @@ checkpatch-job:
      - $CI_PROJECT_DIR/
     expire_in: 1 week
 
-build-k3-x9-job:
+build-k3-job:
   extends: .build-all-job
   parallel:
       matrix:
         - BRANCH_NAME: "npcx_k3_1025"
           BOARD_NAME: "npck3m7k_evb"
           MODULE_NAME: ["adc", "adc_cmp", "bbram", "espi", "espisaf", "gpio", "gpio_all_io_test", "kscan", "miwu_auto_test", "nor_flash", "peci", "ps2", "pwm", "sha", "smbm", "smbm_tmp100", "smbs", "tach"]
+  only:
+    refs:
+      - master
+      - triggers
+build-x9-job:
+  extends: .build-all-job
+  parallel:
+      matrix:
         - BRANCH_NAME: "main"
           BOARD_NAME: "npcx9m6f_evb"
           MODULE_NAME: ["adc", "adc_cmp", "bbram", "espi", "espisaf", "gpio", "gpio_all_io_test", "kscan", "miwu_auto_test", "nor_flash", "peci", "ps2", "pwm", "sha", "smbm", "smbm_tmp100", "smbs", "tach"]
