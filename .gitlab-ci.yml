@@ -31,6 +31,8 @@ checkpatch-job:
     - git remote add ci20_zephyr $CI20_ZEPHYR_REPO_URL
     - git remote update
     - git checkout $BRANCH_NAME
+    - git rebase --onto $BRANCH_NAME HEAD
+    - git pull
     - cd ..
     - git clone $NPCX_TEST_REPO_URL
     - cd ~/zephyrproject
