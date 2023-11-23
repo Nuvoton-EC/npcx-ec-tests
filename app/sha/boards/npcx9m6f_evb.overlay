@@ -9,3 +9,7 @@
 		zephyr,shell-uart = &uart1;
 	};
 };
+
+&sha0 {
+	status = "okay";
+};
