@@ -16,6 +16,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(main);
 
+#define ESPI_BASE_ADDR              0x4000A000
 #define ESPI_FREQ_20MHZ             20u
 #define ESPI_FREQ_25MHZ             25u
 #define ESPI_FREQ_33MHZ             33u
@@ -61,7 +62,10 @@ int espi_maf_erase(uint32_t start_addr);
 
 static void espi_validation_func(void *dummy1, void *dummy2, void *dummy3)
 {
-	uint32_t  events;
+#if defined(CONFIG_SOC_SERIES_NPCK3)
+	struct espi_reg *const inst = (struct espi_reg *)ESPI_BASE_ADDR;
+#endif
+	uint32_t events;
 	int data;
 
 	k_event_init(&espi_event);
@@ -89,6 +93,11 @@ static void espi_validation_func(void *dummy1, void *dummy2, void *dummy3)
 				if (espi_write_lpc_request(espi_dev, E8042_RESUME_IRQ, 0x0) == 0)
 					LOG_INF("KBC IRQ enable pass");
 			}
+#if defined(CONFIG_SOC_SERIES_NPCK3)
+			if (!strcmp("set_sw_path", arguments[0])) {
+				inst->VWEVSMTYPE = 0;
+			}
+#endif
 			break;
 		case 0x004: /* select validation command */
 			if (!strcmp("sendvw0", arguments[0])) {
@@ -233,16 +242,6 @@ void espi_set_cfg(char *channel, char *speed, char *iomode)
 		cfg.channel_caps |= ESPI_CHANNEL_OOB;
 	if (i&0x8)
 		cfg.channel_caps |= ESPI_CHANNEL_FLASH;
-
-	cfg.io_caps = 0;
-	i = atoi(iomode);
-	if ((i&0x1) == 0)
-		LOG_INF("[FAIL]Single must have");
-	cfg.io_caps |= ESPI_IO_MODE_SINGLE_LINE;
-	if (i&0x2)
-		cfg.io_caps |= ESPI_IO_MODE_DUAL_LINES;
-	if (i&0x4)
-		cfg.io_caps |= ESPI_IO_MODE_QUAD_LINES;
 
 	cfg.io_caps = 0;
 	i = atoi(iomode);
