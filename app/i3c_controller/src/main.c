@@ -55,11 +55,6 @@ static struct {
 	int cmd;
 	struct k_sem sem_sync;
 
-	/* command args */
-	struct {
-		uint32_t erase_addr;
-		uint32_t erase_size;
-	} cmd_flash_erase_args;
 } i3c_m_test_objs;
 
 
@@ -151,7 +146,7 @@ static int i3c_m_active_handler(const struct shell *shell, size_t argc, char **a
 		i3c_m_dev_sel = 0;
 	}
 
-	shell_info(sh_ptr, "Select active flash device to [%d]%s", i3c_m_dev_sel,
+	shell_info(sh_ptr, "Select active i3c device to [%d]%s", i3c_m_dev_sel,
 					i3c_m_devices[i3c_m_dev_sel]->name);
 	return 0;
 }
@@ -172,7 +167,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(sub_i3c,
 		i3c_ccc_handler, 1, 0),
 	SHELL_CMD_ARG(active, NULL, "i3c_cntlr active <device>: select active device",
 		i3c_m_active_handler, 1, 1),
-	SHELL_CMD_ARG(list, NULL, "i3c_cntlr list: list all flash devices",
+	SHELL_CMD_ARG(list, NULL, "i3c_cntlr list: list all i3c devices",
 		i3c_m_list_handler, 1, 0),
 SHELL_SUBCMD_SET_END /* Array terminated. */
 );

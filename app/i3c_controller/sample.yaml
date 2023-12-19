@@ -1,8 +1,8 @@
 sample:
-  name: nand flash
-  description: nand flsh test sample, the simplest Zephyr application
+  name: i3c controller
+  description: i3c controller test sample, the simplest Zephyr application
 common:
-    tags: drivers nand_flash
+    tags: drivers i3c_controller
     integration_platforms:
       - npcx4m8f_evb
     harness: console
@@ -11,8 +11,6 @@ common:
 
 tests:
   test:
-    tags: nand_flash
-    filter: CONFIG_SPI and
-            CONFIG_FLASH and
-            CONFIG_FLASH_JESD216_API
+    tags: i3c
+    filter: CONFIG_I3C
     harness: console
