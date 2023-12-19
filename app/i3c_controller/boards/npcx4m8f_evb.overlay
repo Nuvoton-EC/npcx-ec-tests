@@ -1,0 +1,36 @@
+/*
+ * Copyright (c) 2023 Nuvoton Technology Corporation.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/ {
+	chosen {
+		zephyr,shell-uart = &uart1;
+	};
+
+	aliases {
+		i3c-m-0 = &i3c0;
+	};
+};
+
+&i3c0 {
+	status = "okay";
+	pinctrl-0 = <&i3c1_sda_scl_gpe3_e4>;
+	pinctrl-names = "default";
+
+	/*
+	 * There might be other connected I2C devices
+	 * (for example, if using Arduino shield) which
+	 * cannot tolerate high clock speed. So slow
+	 * down the clock.
+	 */
+	i2c-scl-hz = <400000>;
+	i3c-scl-hz = <12500000>;
+	i3c-od-scl-hz = <4170000>;
+
+	clk-divider = <12>;
+	clk-divider-slow = <1>;
+	clk-divider-tc = <1>;
+};
+

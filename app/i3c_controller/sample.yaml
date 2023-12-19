@@ -1,0 +1,18 @@
+sample:
+  name: nand flash
+  description: nand flsh test sample, the simplest Zephyr application
+common:
+    tags: drivers nand_flash
+    integration_platforms:
+      - npcx4m8f_evb
+    harness: console
+    harness_config:
+      type: multi_line
+
+tests:
+  test:
+    tags: nand_flash
+    filter: CONFIG_SPI and
+            CONFIG_FLASH and
+            CONFIG_FLASH_JESD216_API
+    harness: console
