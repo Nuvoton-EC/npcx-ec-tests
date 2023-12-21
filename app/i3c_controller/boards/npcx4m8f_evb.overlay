@@ -26,11 +26,21 @@
 	 * down the clock.
 	 */
 	i2c-scl-hz = <400000>;
-	i3c-scl-hz = <12500000>;
-	i3c-od-scl-hz = <4170000>;
+	i3c-scl-hz = <7500000>;
+	i3c-od-scl-hz = <1500000>;
 
 	clk-divider = <12>;
 	clk-divider-slow = <1>;
 	clk-divider-tc = <1>;
+};
+
+/* If CONFIG_I3C_NPCX is enabled, the suggestion clock configuration as below */
+&pcc {
+	clock-frequency = <DT_FREQ_M(90)>; /* OFMCLK runs at 90MHz */
+	core-prescaler = <3>; /* CORE_CLK runs at 30MHz */
+	apb1-prescaler = <6>; /* APB1_CLK runs at 15MHz */
+	apb2-prescaler = <6>; /* APB2_CLK runs at 15MHz */
+	apb3-prescaler = <6>; /* APB3_CLK runs at 15MHz */
+	apb4-prescaler = <3>; /* APB4_CLK runs at 30MHz */
 };
 
