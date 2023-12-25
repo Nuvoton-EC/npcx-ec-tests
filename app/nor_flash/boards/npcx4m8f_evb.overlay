@@ -23,14 +23,14 @@
 
 	shd_flash0: w25q256@0 {
 		compatible ="nuvoton,npcx-fiu-nor";
-		size = <0x10000000>; /* /* 268435456 bits = 32M Bytes */
+		size = <0x10000000>; /* 268435456 bits = 32M Bytes */
 		max-timeout = <86784>;
 		reg = <0>;
 		quad-enable-requirements = "S2B1v1";
 		status = "okay";
 
 		/* Enable 4Byte address mode when the flash size > 16MB */
-		/* enter-4byte-addr = <0x85>; */
+		enter-4byte-addr = <0x85>;
 
 		/* quad spi bus configuration of nor flash device */
 		qspi-flags = <NPCX_QSPI_SW_CS0>;
