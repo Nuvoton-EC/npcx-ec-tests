@@ -28,15 +28,11 @@ checkpatch-job:
   image: $DOCKER_IMAGE
   script:
     - cd ~/zephyrproject/zephyr
-    - git remote add ci20_zephyr $CI20_ZEPHYR_REPO_URL
-    - git remote update
     - git checkout $BRANCH_NAME
     - git rebase --onto $BRANCH_NAME HEAD
     - git pull
     - cd ..
     - git clone $NPCX_TEST_REPO_URL
-    - cd ~/zephyrproject
-    - west update
     - cd ~/zephyrproject/npcx_tests
     - chmod a+x ./check_overlay.sh
     - ./check_overlay.sh $BOARD_NAME $MODULE_NAME
@@ -53,7 +49,7 @@ build-k3-job:
   extends: .build-all-job
   parallel:
       matrix:
-        - BRANCH_NAME: "npcx_k3_1025"
+        - BRANCH_NAME: "npcx_k3_1210"
           BOARD_NAME: "npck3m7k_evb"
           MODULE_NAME: ["adc", "adc_cmp", "bbram", "espi", "espisaf", "gpio", "gpio_all_io_test", "kscan", "miwu_auto_test", "nor_flash", "peci", "ps2", "pwm", "sha", "smbm", "smbm_tmp100", "smbs", "tach"]
   only:
