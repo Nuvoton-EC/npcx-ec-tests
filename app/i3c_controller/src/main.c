@@ -109,10 +109,39 @@ int main(void)
 
 static int i3c_ccc_handler(const struct shell *shell, size_t argc, char **argv)
 {
+	int ccc_cmd_sel;
+	char *eptr;
+	struct i3c_ccc_events ccc_evt;
+
 	sh_ptr = shell;
 
 	i3c_m_test_objs.cmd = I3C_M_CMD_CCC;
-	printk("CCC handler\n");
+	ccc_cmd_sel = strtoul(argv[1], &eptr, 0);
+	if (*eptr != '\0') {
+		shell_error(shell, "Invalid argument, '%s' is not an integer", argv[1]);
+		return -EINVAL;
+	}
+
+	shell_info(sh_ptr, "CCC select: %d", ccc_cmd_sel);
+
+	switch (ccc_cmd_sel) {
+	case 0:
+		ccc_evt.events = 0x1; /* ENINT */
+		i3c_ccc_do_events_all_set(i3c_m_devices[i3c_m_dev_sel], true, &ccc_evt);
+		break;
+	case 1:
+
+		break;
+	case 2:
+
+		break;
+	case 3:
+
+		break;
+	default:
+		break;
+	}
+
 
 	/* Send event to task and wake it up */
 	k_sem_give(&i3c_m_test_objs.sem_sync);
@@ -128,7 +157,7 @@ static int i3c_m_active_handler(const struct shell *shell, size_t argc, char **a
 	uint32_t active_dev;
 
 	sh_ptr = shell;
-
+	shell_info(sh_ptr, "argc %d", argc);
 	if (argc == 1) {
 		shell_info(sh_ptr, "Active i3c device Index = %d", i3c_m_dev_sel);
 		return 0;
@@ -163,8 +192,8 @@ static int i3c_m_list_handler(const struct shell *shell, size_t argc, char **arg
 }
 
 SHELL_STATIC_SUBCMD_SET_CREATE(sub_i3c,
-	SHELL_CMD_ARG(ccc, NULL, "i3c_cntlr ccc",
-		i3c_ccc_handler, 1, 0),
+	SHELL_CMD_ARG(ccc, NULL, "i3c_cntlr ccc [cmd_sel] "
+		"0: ENEC", i3c_ccc_handler, 1, 1),
 	SHELL_CMD_ARG(active, NULL, "i3c_cntlr active <device>: select active device",
 		i3c_m_active_handler, 1, 1),
 	SHELL_CMD_ARG(list, NULL, "i3c_cntlr list: list all i3c devices",
